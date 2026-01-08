@@ -1,64 +1,194 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { Task, Category } from './models/task.model';
+import { Task, Category, Column } from './models/task.model';
 import { TaskService } from './services/task';
 import { CommonModule } from '@angular/common';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, DragDropModule],
+  imports: [CommonModule, DragDropModule, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
   private taskService = inject(TaskService);
 
-  tasks = signal<Task[]>([]);
+  // Board structure (now based on Columns as per API)
+  columns = signal<Column[]>([]);
   categories = signal<Category[]>([]);
   selectedCategoryId = signal<string | null>(null);
 
-  // Columnas filtradas (estas se usan para mostrar)
-  pendingTasks = computed(() => this.tasks().filter(t => t.status === 'PENDING' && (!this.selectedCategoryId() || t.categoryId === this.selectedCategoryId())));
-  inProgressTasks = computed(() => this.tasks().filter(t => t.status === 'IN_PROGRESS' && (!this.selectedCategoryId() || t.categoryId === this.selectedCategoryId())));
-  doneTasks = computed(() => this.tasks().filter(t => t.status === 'DONE' && (!this.selectedCategoryId() || t.categoryId === this.selectedCategoryId())));
+  columnIds = computed(() => this.columns().map(c => c.id));
+
+  // Modal state
+  isModalOpen = signal(false);
+  modalMode = signal<'LIST' | 'CARD'>('CARD');
+  modalTitle = signal('');
+  currentColumnId = signal<string | null>(null);
+  overlayMouseDown = false;
+
+  // Form signals
+  formTitle = signal('');
+  formDescription = signal('');
+  formCategoryId = signal<string | null>(null);
+  formEffortPoints = signal<number>(0);
+
+  // Category creation signals
+  showNewCategoryForm = signal(false);
+  newCategoryName = signal('');
+  newCategoryColor = signal('#0079bf');
 
   ngOnInit() {
-    this.loadData();
+    this.loadInitialData();
   }
 
-  loadData() {
-    this.taskService.getTasks().subscribe(data => this.tasks.set(data));
-    this.taskService.getCategories().subscribe(data => this.categories.set(data));
+  loadInitialData() {
+    // 1. Load Categories
+    this.taskService.getCategories().subscribe(data => {
+      this.categories.set(data);
+    });
+
+    // 2. Load Columns and then Tasks
+    this.taskService.getColumns().subscribe({
+      next: (columns) => {
+        this.columns.set(columns.sort((a, b) => a.order - b.order));
+        this.loadTasksForAllColumns();
+      },
+      error: () => {
+        // Mock columns if backend fails
+        const mockCols: Column[] = [
+          { id: 'c1', name: 'Pendientes', order: 1, createdAt: new Date(), tasks: [] },
+          { id: 'c2', name: 'En Proceso', order: 2, createdAt: new Date(), tasks: [] },
+          { id: 'c3', name: 'Hecho', order: 3, createdAt: new Date(), tasks: [] }
+        ];
+        this.columns.set(mockCols);
+      }
+    });
   }
 
-  // MÉTODO PARA MANEJAR EL SOLTADO DE TARJETAS
-  drop(event: CdkDragDrop<Task[]>, newStatus: string) {
-    const task = event.item.data as Task;
+  loadTasksForAllColumns() {
+    this.taskService.getTasks().subscribe(tasks => {
+      // Group tasks by columnId
+      this.columns.update(cols => cols.map(col => ({
+        ...col,
+        tasks: tasks.filter(t => t.columnId === col.id)
+      })));
+    });
+  }
+
+  drop(event: CdkDragDrop<Task[] | undefined>, columnId: string) {
+    if (!event.container.data || !event.previousContainer.data) return;
 
     if (event.previousContainer === event.container) {
-      if (event.previousIndex === event.currentIndex) return;
-
-      // Para reordenar dentro de la misma columna con Signals, 
-      // tendríamos que implementar una lógica de ordenamiento real.
-      // Por ahora, moveItemInArray lo hace visualmente en el array local.
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      // Optional: Update order in backend if needed
     } else {
-      // 1. Actualizar en el Backend
-      this.taskService.updateTaskStatus(task.id, newStatus).subscribe({
-        error: (err) => {
-          console.error('Error al actualizar tarea:', err);
-          // Opcional: revertir el cambio local si falla
-        }
-      });
-
-      // 2. Actualizar localmente el Signal
-      this.tasks.update(prevTasks =>
-        prevTasks.map(t => t.id === task.id ? { ...t, status: newStatus as any } : t)
+      const task = event.item.data as Task;
+      transferArrayItem(
+        event.previousContainer.data,
+        event.container.data,
+        event.previousIndex,
+        event.currentIndex
       );
+
+      // Update Column ID in Backend
+      this.taskService.updateTask(task.id, { columnId }).subscribe();
     }
+
+    // Ensure reactivity
+    this.columns.set([...this.columns()]);
   }
 
   selectCategory(id: string | null) {
     this.selectedCategoryId.set(id);
+  }
+
+  getColumnEffortTotal(column: Column): number {
+    return (column.tasks || []).reduce((acc, task) => acc + (task.effortPoints || 0), 0);
+  }
+
+  openAddColumnModal() {
+    this.modalMode.set('LIST'); // Keep internal name for less refactoring in HTML
+    this.modalTitle.set('Añadir una columna');
+    this.formTitle.set('');
+    this.isModalOpen.set(true);
+  }
+
+  openAddCardModal(columnId: string) {
+    this.modalMode.set('CARD');
+    this.modalTitle.set('Añadir una tarjeta');
+    this.currentColumnId.set(columnId);
+    this.formTitle.set('');
+    this.formDescription.set('');
+    this.formCategoryId.set(null);
+    this.formEffortPoints.set(0);
+    this.showNewCategoryForm.set(false);
+    this.isModalOpen.set(true);
+  }
+
+  closeModal() {
+    this.isModalOpen.set(false);
+  }
+
+  handleOverlayMouseDown(event: MouseEvent) {
+    this.overlayMouseDown = event.target === event.currentTarget;
+  }
+
+  handleOverlayClick(event: MouseEvent) {
+    if (this.overlayMouseDown && event.target === event.currentTarget) {
+      this.closeModal();
+    }
+  }
+
+  toggleCategoryForm() {
+    this.showNewCategoryForm.update(prev => !prev);
+    if (this.showNewCategoryForm()) {
+      this.newCategoryName.set('');
+    }
+  }
+
+  submitModal() {
+    const title = this.formTitle();
+    if (!title) return;
+
+    if (this.modalMode() === 'LIST') {
+      this.addColumn(title);
+    } else {
+      if (this.showNewCategoryForm() && this.newCategoryName()) {
+        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
+          this.categories.update(prev => [...prev, newCat]);
+          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints());
+        });
+      } else {
+        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints());
+      }
+    }
+    this.closeModal();
+  }
+
+  private addColumn(name: string) {
+    this.taskService.createColumn(name, this.columns().length).subscribe(newCol => {
+      this.columns.update(prev => [...prev, { ...newCol, tasks: [] }]);
+    });
+  }
+
+  private addCard(title: string, description: string, categoryId: string | null, effortPoints: number) {
+    const columnId = this.currentColumnId()!;
+    this.taskService.createTask({
+      title,
+      description,
+      effortPoints,
+      categoryId: categoryId || undefined,
+      columnId
+    }).subscribe(newTask => {
+      // Backend might not return the full category object, let's find it locally
+      const category = this.categories().find(c => c.id === categoryId);
+      const taskWithCategory = { ...newTask, category };
+
+      this.columns.update(cols => cols.map(c =>
+        c.id === columnId ? { ...c, tasks: [...(c.tasks || []), taskWithCategory] } : c
+      ));
+    });
   }
 }

@@ -1,48 +1,126 @@
 <div class="millo-container" cdkDropListGroup>
-  <main class="board">
+  <header class="app-header">
+    <div class="board-info">
+      <h1>Millo Board</h1>
+    </div>
 
-    <section class="column">
-      <h2>Pendientes <span>({{ pendingTasks().length }})</span></h2>
-      <div id="PENDING_LIST" cdkDropList [cdkDropListData]="pendingTasks()"
-        [cdkDropListConnectedTo]="['IN_PROGRESS_LIST', 'DONE_LIST']" (cdkDropListDropped)="drop($event, 'PENDING')"
-        class="task-list">
-        @for (task of pendingTasks(); track task.id) {
-        <article class="card" cdkDrag [cdkDragData]="task">
-          <div class="category-tag" [style.background-color]="task.category?.color"></div>
-          <h3>{{ task.title }}</h3>
-          <div class="effort">{{ task.effortPoints }} pts</div>
-        </article>
-        }
-      </div>
-    </section>
+    <div class="filters">
+      <button (click)="selectCategory(null)" [class.active]="!selectedCategoryId()">Todo</button>
+      @for (cat of categories(); track cat.id) {
+      <button (click)="selectCategory(cat.id)" [class.active]="selectedCategoryId() === cat.id">
+        {{ cat.name }}
+      </button>
+      }
+    </div>
+  </header>
 
-    <section class="column">
-      <h2>En Proceso <span>({{ inProgressTasks().length }})</span></h2>
-      <div id="IN_PROGRESS_LIST" cdkDropList [cdkDropListData]="inProgressTasks()"
-        [cdkDropListConnectedTo]="['PENDING_LIST', 'DONE_LIST']" (cdkDropListDropped)="drop($event, 'IN_PROGRESS')"
-        class="task-list">
-        @for (task of inProgressTasks(); track task.id) {
-        <article class="card" cdkDrag [cdkDragData]="task">
-          <div class="category-tag" [style.background-color]="task.category?.color"></div>
-          <h3>{{ task.title }}</h3>
-          <div class="effort">{{ task.effortPoints }} pts</div>
-        </article>
-        }
-      </div>
-    </section>
+  <main class="board-canvas">
+    <div class="lists-container">
+      @for (column of columns(); track column.id) {
+      <section class="column">
+        <div class="column-header">
+          <h2>{{ column.name }} <span>({{ column.tasks?.length || 0 }})</span></h2>
+          <button class="menu-btn">···</button>
+        </div>
 
-    <section class="column">
-      <h2>Hecho <span>({{ doneTasks().length }})</span></h2>
-      <div id="DONE_LIST" cdkDropList [cdkDropListData]="doneTasks()"
-        [cdkDropListConnectedTo]="['PENDING_LIST', 'IN_PROGRESS_LIST']" (cdkDropListDropped)="drop($event, 'DONE')"
-        class="task-list">
-        @for (task of doneTasks(); track task.id) {
-        <article class="card" cdkDrag [cdkDragData]="task">
-          <h3>{{ task.title }}</h3>
-        </article>
-        }
-      </div>
-    </section>
+        <div [id]="column.id" cdkDropList [cdkDropListData]="column.tasks" [cdkDropListConnectedTo]="columnIds()"
+          (cdkDropListDropped)="drop($event, column.id)" class="task-list">
 
+          @for (task of column.tasks; track task.id) {
+          @if (!selectedCategoryId() || task.categoryId === selectedCategoryId()) {
+          <article class="card" cdkDrag [cdkDragData]="task">
+            <div class="card-content">
+              <div class="category-tag" [style.background-color]="task.category?.color"></div>
+              <h3>{{ task.title }}</h3>
+              <p *ngIf="task.description" class="description">{{ task.description }}</p>
+              <div class="card-footer">
+                <span class="effort" *ngIf="task.effortPoints">{{ task.effortPoints }} pts</span>
+              </div>
+            </div>
+          </article>
+          }
+          }
+
+          <div class="column-footer" *ngIf="column.tasks && column.tasks.length > 0">
+            <span class="total-effort">Total: {{ getColumnEffortTotal(column) }} pts</span>
+          </div>
+
+          <button class="add-card-btn" (click)="openAddCardModal(column.id)">+ Añadir una tarjeta</button>
+        </div>
+      </section>
+      }
+
+      <button class="add-list-btn" (click)="openAddColumnModal()">+ Añadir otra columna</button>
+    </div>
   </main>
+
+  <!-- Custom Modal -->
+  @if (isModalOpen()) {
+  <div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)" (click)="handleOverlayClick($event)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modalTitle() }}</h2>
+        <button class="close-btn" (click)="closeModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Título</label>
+          <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
+            placeholder="Introduce un título..." autofocus>
+        </div>
+
+        <div class="form-group" *ngIf="modalMode() === 'CARD'">
+          <label>Descripción</label>
+          <textarea [value]="formDescription()" (input)="formDescription.set($any($event.target).value)"
+            placeholder="Añade una descripción más detallada..."></textarea>
+        </div>
+
+        <div class="modal-row" *ngIf="modalMode() === 'CARD'">
+          <div class="form-group flex-1">
+            <label>Esfuerzo (pts)</label>
+            <input type="number" [value]="formEffortPoints()"
+              (input)="formEffortPoints.set($any($event.target).valueAsNumber)" min="0">
+          </div>
+
+          <div class="form-group flex-2">
+            <label>Categoría</label>
+            <div class="select-wrapper">
+              <select [value]="formCategoryId()" (change)="formCategoryId.set($any($event.target).value)"
+                *ngIf="!showNewCategoryForm()">
+                <option [value]="null">Sin categoría</option>
+                @for (cat of categories(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+              <button class="small-btn" (click)="toggleCategoryForm()">
+                {{ showNewCategoryForm() ? 'Cancelar' : '+ Nueva' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline Category Creation -->
+        <div class="category-creator" *ngIf="showNewCategoryForm() && modalMode() === 'CARD'">
+          <div class="form-group">
+            <label>Nueva Categoría</label>
+            <div class="creator-row">
+              <input type="text" [value]="newCategoryName()" (input)="newCategoryName.set($any($event.target).value)"
+                placeholder="Nombre...">
+              <input type="color" [value]="newCategoryColor()"
+                (input)="newCategoryColor.set($any($event.target).value)">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
+        <button class="submit-btn" [disabled]="!formTitle()" (click)="submitModal()">
+          {{ modalMode() === 'LIST' ? 'Añadir columna' : 'Añadir tarjeta' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  }
 </div>
