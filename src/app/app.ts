@@ -41,6 +41,9 @@ export class App implements OnInit, AfterViewInit {
   newCategoryName = signal('');
   newCategoryColor = signal('#0079bf');
 
+  // Drag state
+  isDragging = signal(false);
+
   ngOnInit() {
     this.loadInitialData();
   }
@@ -87,6 +90,9 @@ export class App implements OnInit, AfterViewInit {
   }
 
   drop(event: CdkDragDrop<Task[] | undefined>, columnId: string) {
+    this.isDragging.set(false);
+    this.enableScroll();
+
     if (!event.container.data || !event.previousContainer.data) return;
 
     if (event.previousContainer === event.container) {
@@ -107,6 +113,32 @@ export class App implements OnInit, AfterViewInit {
 
     // Ensure reactivity
     this.columns.set([...this.columns()]);
+  }
+
+  onDragStarted() {
+    this.isDragging.set(true);
+    this.disableScroll();
+  }
+
+  onDragEnded() {
+    this.isDragging.set(false);
+    this.enableScroll();
+  }
+
+  private disableScroll() {
+    if (this.boardCanvas?.nativeElement) {
+      this.boardCanvas.nativeElement.style.overflowX = 'hidden';
+    }
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  }
+
+  private enableScroll() {
+    if (this.boardCanvas?.nativeElement) {
+      this.boardCanvas.nativeElement.style.overflowX = 'auto';
+    }
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
   }
 
   selectCategory(id: string | null) {

@@ -212,6 +212,7 @@
   box-shadow: 0 1px 3px rgba(9, 30, 66, 0.13);
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
+  touch-action: none; // Prevent scroll during drag on mobile
 
   &:hover {
     background: #fafbfc;
@@ -307,6 +308,12 @@
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   background: white;
   padding: 10px 12px 14px;
+  opacity: 0.9;
+  z-index: 9999;
+
+  @media (max-width: 600px) {
+    transform: scale(1.05);
+  }
 }
 
 .cdk-drop-list-placeholder {

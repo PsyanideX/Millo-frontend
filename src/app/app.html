@@ -28,7 +28,8 @@
 
           @for (task of column.tasks; track task.id) {
           @if (!selectedCategoryId() || task.categoryId === selectedCategoryId()) {
-          <article class="card" cdkDrag [cdkDragData]="task">
+          <article class="card" cdkDrag [cdkDragData]="task" (cdkDragStarted)="onDragStarted()"
+            (cdkDragEnded)="onDragEnded()">
             <div class="card-content">
               <div class="category-tag" [style.background-color]="task.category?.color"></div>
               <h3>{{ task.title }}</h3>
