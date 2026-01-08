@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { Task, Category, Column } from './models/task.model';
 import { TaskService } from './services/task';
 import { CommonModule } from '@angular/common';
@@ -11,8 +11,10 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App implements OnInit {
+export class App implements OnInit, AfterViewInit {
   private taskService = inject(TaskService);
+
+  @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
 
   // Board structure (now based on Columns as per API)
   columns = signal<Column[]>([]);
@@ -41,6 +43,13 @@ export class App implements OnInit {
 
   ngOnInit() {
     this.loadInitialData();
+  }
+
+  ngAfterViewInit() {
+    // Reset scroll position to the start (left)
+    if (this.boardCanvas?.nativeElement) {
+      this.boardCanvas.nativeElement.scrollLeft = 0;
+    }
   }
 
   loadInitialData() {
