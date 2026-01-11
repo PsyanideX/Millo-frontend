@@ -40,6 +40,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   formTitle = signal('');
   formDescription = signal('');
   formCategoryId = signal<string | null>(null);
+  formPriority = signal<"Low" | "Medium" | "High">('Low');
+  formEndDate = signal<string>('');
   formEffortPoints = signal<number>(0);
   formItems = signal<TaskItem[]>([]);
   showItemsForm = signal(false);
@@ -98,10 +100,30 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   loadTasksForAllColumns() {
     this.taskService.getTasks().subscribe(tasks => {
       // Group tasks by columnId
-      this.columns.update(cols => cols.map(col => ({
-        ...col,
-        tasks: tasks.filter(t => t.columnId === col.id)
-      })));
+      this.columns.update(cols => cols.map(col => {
+        const colTasks = tasks.filter(t => t.columnId === col.id);
+
+        // Sort tasks: Priority (High > Medium > Low), then EndDate (Ascending)
+        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+
+        colTasks.sort((a, b) => {
+          const pA = priorityOrder[a.priority ?? 'Low'] ?? 1;
+          const pB = priorityOrder[b.priority ?? 'Low'] ?? 1;
+
+          if (pA !== pB) return pB - pA; // Descending priority
+
+          // If priorities are equal, sort by endDate (closer dates first)
+          const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_VALUE;
+          const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_VALUE;
+
+          return dateA - dateB;
+        });
+
+        return {
+          ...col,
+          tasks: colTasks
+        };
+      }));
     });
   }
 
@@ -140,6 +162,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.isDragging.set(false);
     this.enableScroll();
   }
+
+  isUrgent(endDate?: Date | string): boolean {
+    if (!endDate) return false;
+    const end = new Date(endDate);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }
+
 
   private disableScroll() {
     if (this.boardCanvas?.nativeElement) {
@@ -184,6 +216,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.formTitle.set('');
     this.formDescription.set('');
     this.formCategoryId.set(null);
+    this.formPriority.set('Low');
+    this.formEndDate.set('');
     this.formEffortPoints.set(0);
     this.formItems.set([]);
     this.showItemsForm.set(false);
@@ -200,6 +234,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.formTitle.set(task.title);
     this.formDescription.set(task.description || '');
     this.formCategoryId.set(task.categoryId || null);
+    this.formPriority.set(task.priority || 'Low');
+    this.formEndDate.set(task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : '');
     this.formEffortPoints.set(task.effortPoints || 0);
     this.formItems.set(task.items ? [...task.items] : []);
     this.showItemsForm.set(false);
@@ -274,7 +310,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   getFinancialSummary(categoryId: string | null): { items: Array<{ name: string; quantity: number; price: number; subtotal: number }>; total: number } {
     const allTasks = this.columns().flatMap(col => col.tasks || []);
-    
+
     let filteredTasks = allTasks;
     if (categoryId) {
       filteredTasks = allTasks.filter(task => task.categoryId === categoryId);
@@ -314,19 +350,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       if (this.showNewCategoryForm() && this.newCategoryName()) {
         this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
           this.categories.update(prev => [...prev, newCat]);
-          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints());
+          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
         });
       } else {
-        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints());
+        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
       }
     } else if (this.modalMode() === 'EDIT') {
       if (this.showNewCategoryForm() && this.newCategoryName()) {
         this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
           this.categories.update(prev => [...prev, newCat]);
-          this.editCard(title, this.formDescription(), newCat.id, this.formEffortPoints());
+          this.editCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
         });
       } else {
-        this.editCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints());
+        this.editCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
       }
     }
     this.closeModal();
@@ -338,12 +374,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private addCard(title: string, description: string, categoryId: string | null, effortPoints: number) {
+  private addCard(title: string, description: string, categoryId: string | null, effortPoints: number, priority: "Low" | "Medium" | "High", endDate: string) {
     const columnId = this.currentColumnId()!;
     this.taskService.createTask({
       title,
       description,
       effortPoints,
+      priority,
+      endDate: endDate ? new Date(endDate) : undefined,
       categoryId: categoryId || undefined,
       columnId,
       items: this.formItems().length > 0 ? this.formItems() : undefined
@@ -358,7 +396,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private editCard(title: string, description: string, categoryId: string | null, effortPoints: number) {
+  private editCard(title: string, description: string, categoryId: string | null, effortPoints: number, priority: "Low" | "Medium" | "High", endDate: string) {
     const task = this.currentTask();
     if (!task) return;
 
@@ -366,6 +404,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       title,
       description,
       effortPoints,
+      priority,
+      endDate: endDate ? new Date(endDate) : undefined,
       categoryId: categoryId || undefined,
       items: this.formItems().length > 0 ? this.formItems() : undefined
     }).subscribe(updatedTask => {

@@ -991,3 +991,62 @@
     }
   }
 }
+
+/* Card Tags Refinement */
+.card {
+  .card-tags {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+
+    .category-tag {
+      margin-bottom: 0;
+    }
+
+    .priority-tag {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      &.high {
+        background-color: #ffebe6;
+        color: #bf2600;
+      }
+
+      &.medium {
+        background-color: #fffae6;
+        color: #bfa126;
+        /* Darker yellow/mustard */
+      }
+
+      &.low {
+        background-color: #e3fcef;
+        color: #006644;
+      }
+    }
+
+    .urgent-icon {
+      font-size: 0.95rem;
+      animation: pulse 2s infinite;
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}

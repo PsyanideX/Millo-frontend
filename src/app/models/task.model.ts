@@ -27,6 +27,8 @@ export interface Task {
   categoryId?: string;
   columnId: string;
   items?: TaskItem[];
+  priority?: "Low" | "Medium" | "High";
+  endDate?: Date;
 
   // Relations (optional for frontend display)
   category?: Category;

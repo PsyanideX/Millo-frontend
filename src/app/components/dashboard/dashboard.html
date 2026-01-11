@@ -31,7 +31,12 @@
           <article class="card" cdkDrag [cdkDragData]="task" (cdkDragStarted)="onDragStarted()"
             (cdkDragEnded)="onDragEnded()" (click)="openEditCardModal(task)">
             <div class="card-content">
-              <div class="category-tag" [style.background-color]="task.category?.color"></div>
+              <div class="card-tags">
+                <div class="category-tag" [style.background-color]="task.category?.color" title="Categoría"></div>
+                <span class="priority-tag" [class]="(task.priority || 'Low').toLowerCase()">{{ task.priority || 'Low'
+                  }}</span>
+                <span *ngIf="isUrgent(task.endDate)" class="urgent-icon" title="Vence pronto">⏰</span>
+              </div>
               <h3>{{ task.title }}</h3>
               <p *ngIf="task.description" class="description">{{ task.description }}</p>
               <div class="card-footer">
@@ -102,6 +107,21 @@
           </div>
         </div>
 
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST'">
+          <div class="form-group flex-1">
+            <label>Prioridad</label>
+            <select [value]="formPriority()" (change)="formPriority.set($any($event.target).value)">
+              <option value="Low">Baja</option>
+              <option value="Medium">Media</option>
+              <option value="High">Alta</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label>Fecha Límite</label>
+            <input type="date" [value]="formEndDate()" (change)="formEndDate.set($any($event.target).value)">
+          </div>
+        </div>
+
         <!-- Inline Category Creation -->
         <div class="category-creator" *ngIf="showNewCategoryForm() && modalMode() !== 'LIST'">
           <div class="form-group">
@@ -126,25 +146,21 @@
             <div class="add-item-form">
               <div class="form-group">
                 <label>Nombre del artículo</label>
-                <input type="text" [value]="newItemName()" 
-                  (input)="newItemName.set($any($event.target).value)"
-                  placeholder="Nombre del artículo..." 
-                  (keyup.enter)="addItem()">
+                <input type="text" [value]="newItemName()" (input)="newItemName.set($any($event.target).value)"
+                  placeholder="Nombre del artículo..." (keyup.enter)="addItem()">
               </div>
 
               <div class="form-row">
                 <div class="form-group">
                   <label>Cantidad</label>
-                  <input type="number" [value]="newItemQuantity()" 
-                    (input)="newItemQuantity.set($any($event.target).valueAsNumber)"
-                    min="1" max="9999">
+                  <input type="number" [value]="newItemQuantity()"
+                    (input)="newItemQuantity.set($any($event.target).valueAsNumber)" min="1" max="9999">
                 </div>
 
                 <div class="form-group">
                   <label>Precio (€)</label>
-                  <input type="number" [value]="newItemPrice()" 
-                    (input)="newItemPrice.set($any($event.target).valueAsNumber)"
-                    min="0" step="0.01">
+                  <input type="number" [value]="newItemPrice()"
+                    (input)="newItemPrice.set($any($event.target).valueAsNumber)" min="0" step="0.01">
                 </div>
 
                 <button class="add-item-btn" (click)="addItem()">Añadir</button>
@@ -154,13 +170,14 @@
             <!-- Items List -->
             <div class="items-list" *ngIf="formItems().length > 0">
               @for (item of formItems(); track $index) {
-                <div class="item-row">
-                  <div class="item-info">
-                    <span class="item-name">{{ item.name }}</span>
-                    <span class="item-details">{{ item.quantity }} x {{ item.price.toFixed(2) }}€ = {{ (item.quantity * item.price).toFixed(2) }}€</span>
-                  </div>
-                  <button class="remove-item-btn" (click)="removeItem($index)">✕</button>
+              <div class="item-row">
+                <div class="item-info">
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-details">{{ item.quantity }} x {{ item.price.toFixed(2) }}€ = {{ (item.quantity *
+                    item.price).toFixed(2) }}€</span>
                 </div>
+                <button class="remove-item-btn" (click)="removeItem($index)">✕</button>
+              </div>
               }
 
               <div class="items-total">
@@ -176,11 +193,11 @@
         <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
         <button class="submit-btn" [disabled]="!formTitle()" (click)="submitModal()">
           @if (modalMode() === 'LIST') {
-            Añadir columna
+          Añadir columna
           } @else if (modalMode() === 'EDIT') {
-            Guardar cambios
+          Guardar cambios
           } @else {
-            Añadir tarjeta
+          Añadir tarjeta
           }
         </button>
       </div>
@@ -195,9 +212,9 @@
     </button>
 
     @if (showMenuOptions()) {
-      <button class="fab-option" (click)="openFinancialSummary()">
-        📊 Resumen Financiero
-      </button>
+    <button class="fab-option" (click)="openFinancialSummary()">
+      📊 Resumen Financiero
+    </button>
     }
   </div>
 
@@ -213,43 +230,44 @@
       <div class="modal-body">
         <div class="form-group">
           <label>Categoría</label>
-          <select [value]="summarySelectedCategoryId() || ''" (change)="summarySelectedCategoryId.set($any($event.target).value || null)">
+          <select [value]="summarySelectedCategoryId() || ''"
+            (change)="summarySelectedCategoryId.set($any($event.target).value || null)">
             <option [value]="''">Todas las categorías</option>
             @for (cat of categories(); track cat.id) {
-              <option [value]="cat.id">{{ cat.name }}</option>
+            <option [value]="cat.id">{{ cat.name }}</option>
             }
           </select>
         </div>
 
         <div class="financial-summary">
           @if (getFinancialSummary(summarySelectedCategoryId()).items.length > 0) {
-            <table class="summary-table">
-              <thead>
-                <tr>
-                  <th>Artículo</th>
-                  <th>Cantidad</th>
-                  <th>Precio Unit.</th>
-                  <th>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of getFinancialSummary(summarySelectedCategoryId()).items; track item.name) {
-                  <tr>
-                    <td class="item-name">{{ item.name }}</td>
-                    <td class="quantity">{{ item.quantity }}</td>
-                    <td class="price">{{ item.price.toFixed(2) }}€</td>
-                    <td class="subtotal">{{ item.subtotal.toFixed(2) }}€</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Artículo</th>
+                <th>Cantidad</th>
+                <th>Precio Unit.</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of getFinancialSummary(summarySelectedCategoryId()).items; track item.name) {
+              <tr>
+                <td class="item-name">{{ item.name }}</td>
+                <td class="quantity">{{ item.quantity }}</td>
+                <td class="price">{{ item.price.toFixed(2) }}€</td>
+                <td class="subtotal">{{ item.subtotal.toFixed(2) }}€</td>
+              </tr>
+              }
+            </tbody>
+          </table>
 
-            <div class="summary-total">
-              <span>Total:</span>
-              <span class="total-amount">{{ getFinancialSummary(summarySelectedCategoryId()).total.toFixed(2) }}€</span>
-            </div>
+          <div class="summary-total">
+            <span>Total:</span>
+            <span class="total-amount">{{ getFinancialSummary(summarySelectedCategoryId()).total.toFixed(2) }}€</span>
+          </div>
           } @else {
-            <p class="no-items">No hay artículos para esta categoría</p>
+          <p class="no-items">No hay artículos para esta categoría</p>
           }
         </div>
       </div>
