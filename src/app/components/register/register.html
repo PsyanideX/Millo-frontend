@@ -1,0 +1,126 @@
+<div class="register-container">
+  <div class="register-box">
+    <h1>Millo</h1>
+    <p class="subtitle">Crea tu cuenta</p>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+
+      <!-- Name Field -->
+      <div class="form-group">
+        <label for="name">Nombre Completo</label>
+        <input
+          id="name"
+          type="text"
+          formControlName="name"
+          class="form-input"
+          [class.error]="name?.invalid && (name?.touched || name?.dirty)"
+          placeholder="Tu nombre"
+          [disabled]="isLoading"
+        />
+        <div *ngIf="name?.invalid && (name?.touched || name?.dirty)" class="error-text">
+          <span *ngIf="name?.errors?.['required']">El nombre es requerido</span>
+          <span *ngIf="name?.errors?.['minlength']">Mínimo 3 caracteres</span>
+        </div>
+      </div>
+
+      <!-- Email Field -->
+      <div class="form-group">
+        <label for="email">Correo Electrónico</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-input"
+          [class.error]="email?.invalid && (email?.touched || email?.dirty)"
+          placeholder="correo@ejemplo.com"
+          [disabled]="isLoading"
+        />
+        <div *ngIf="email?.invalid && (email?.touched || email?.dirty)" class="error-text">
+          <span *ngIf="email?.errors?.['required']">El correo es requerido</span>
+          <span *ngIf="email?.errors?.['email']">Ingresa un correo válido</span>
+        </div>
+      </div>
+
+      <!-- Password Field -->
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <div class="password-input-wrapper">
+          <input
+            id="password"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="password"
+            class="form-input"
+            [class.error]="password?.invalid && (password?.touched || password?.dirty)"
+            placeholder="••••••••"
+            [disabled]="isLoading"
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            (click)="togglePasswordVisibility()"
+            [disabled]="isLoading"
+            tabindex="-1"
+          >
+            <span *ngIf="!showPassword">👁️</span>
+            <span *ngIf="showPassword">👁️‍🗨️</span>
+          </button>
+        </div>
+        <div *ngIf="password?.invalid && (password?.touched || password?.dirty)" class="error-text">
+          <span *ngIf="password?.errors?.['required']">La contraseña es requerida</span>
+          <span *ngIf="password?.errors?.['minlength']">Mínimo 6 caracteres</span>
+        </div>
+      </div>
+
+      <!-- Confirm Password Field -->
+      <div class="form-group">
+        <label for="confirmPassword">Confirmar Contraseña</label>
+        <div class="password-input-wrapper">
+          <input
+            id="confirmPassword"
+            [type]="showConfirmPassword ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            class="form-input"
+            [class.error]="(confirmPassword?.invalid && (confirmPassword?.touched || confirmPassword?.dirty)) || (registerForm.errors?.['passwordMismatch'] && confirmPassword?.touched)"
+            placeholder="••••••••"
+            [disabled]="isLoading"
+          />
+          <button
+            type="button"
+            class="toggle-password"
+            (click)="toggleConfirmPasswordVisibility()"
+            [disabled]="isLoading"
+            tabindex="-1"
+          >
+            <span *ngIf="!showConfirmPassword">👁️</span>
+            <span *ngIf="showConfirmPassword">👁️‍🗨️</span>
+          </button>
+        </div>
+        <div *ngIf="confirmPassword?.invalid && (confirmPassword?.touched || confirmPassword?.dirty)" class="error-text">
+          <span *ngIf="confirmPassword?.errors?.['required']">Confirma tu contraseña</span>
+        </div>
+        <div *ngIf="registerForm.errors?.['passwordMismatch'] && confirmPassword?.touched" class="error-text">
+          <span>Las contraseñas no coinciden</span>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        class="submit-button"
+        [disabled]="registerForm.invalid || isLoading"
+      >
+        <span *ngIf="!isLoading">Crear Cuenta</span>
+        <span *ngIf="isLoading">Cargando...</span>
+      </button>
+    </form>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión aquí</a></p>
+    </div>
+  </div>
+</div>

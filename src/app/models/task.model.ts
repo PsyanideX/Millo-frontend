@@ -12,6 +12,12 @@ export interface Column {
   tasks?: Task[]; // Optional array for frontend grouping
 }
 
+export interface TaskItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -20,6 +26,7 @@ export interface Task {
   createdAt: Date;
   categoryId?: string;
   columnId: string;
+  items?: TaskItem[];
 
   // Relations (optional for frontend display)
   category?: Category;

@@ -2,13 +2,14 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Task, Category, Column } from '../models/task.model';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TaskService {
   private http = inject(HttpClient);
-  private apiUrl = 'https://millobackend.vercel.app';
+  private apiUrl = environment.vercelUrl;
 
   // State
   categories = signal<Category[]>([]);
@@ -62,7 +63,7 @@ export class TaskService {
     return this.http.get<Task[]>(url);
   }
 
-  createTask(task: { title: string, description?: string, effortPoints?: number, categoryId?: string, columnId: string }): Observable<Task> {
+  createTask(task: Partial<Task>): Observable<Task> {
     return this.http.post<Task>(`${this.apiUrl}/tasks`, task);
   }
 

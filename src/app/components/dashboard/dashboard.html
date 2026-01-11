@@ -1,0 +1,263 @@
+<div class="millo-container" cdkDropListGroup>
+  <header class="app-header">
+    <div class="board-info">
+      <h1>Millo Board</h1>
+    </div>
+
+    <div class="filters">
+      <button (click)="selectCategory(null)" [class.active]="!selectedCategoryId()">Todo</button>
+      @for (cat of categories(); track cat.id) {
+      <button (click)="selectCategory(cat.id)" [class.active]="selectedCategoryId() === cat.id">
+        {{ cat.name }}
+      </button>
+      }
+    </div>
+  </header>
+
+  <main class="board-canvas" #boardCanvas>
+    <div class="lists-container">
+      @for (column of columns(); track column.id) {
+      <section class="column">
+        <div class="column-header">
+          <h2>{{ column.name }} <span>({{ column.tasks?.length || 0 }})</span></h2>
+          <button class="menu-btn">···</button>
+        </div>
+
+        <div [id]="column.id" cdkDropList [cdkDropListData]="column.tasks" [cdkDropListConnectedTo]="columnIds()"
+          (cdkDropListDropped)="drop($event, column.id)" class="task-list">
+
+          @for (task of column.tasks; track task.id) {
+          @if (!selectedCategoryId() || task.categoryId === selectedCategoryId()) {
+          <article class="card" cdkDrag [cdkDragData]="task" (cdkDragStarted)="onDragStarted()"
+            (cdkDragEnded)="onDragEnded()" (click)="openEditCardModal(task)">
+            <div class="card-content">
+              <div class="category-tag" [style.background-color]="task.category?.color"></div>
+              <h3>{{ task.title }}</h3>
+              <p *ngIf="task.description" class="description">{{ task.description }}</p>
+              <div class="card-footer">
+                <span class="effort" *ngIf="task.effortPoints">{{ task.effortPoints }} pts</span>
+                <span class="cost" *ngIf="getTaskCostTotal(task) > 0">{{ getTaskCostTotal(task).toFixed(2) }}€</span>
+              </div>
+            </div>
+          </article>
+          }
+          }
+
+          <div class="column-footer" *ngIf="column.tasks && column.tasks.length > 0">
+            <span class="total-effort">Total: {{ getColumnEffortTotal(column) }} pts</span>
+          </div>
+
+          <button class="add-card-btn" (click)="openAddCardModal(column.id)">+ Añadir una tarjeta</button>
+        </div>
+      </section>
+      }
+
+      <button class="add-list-btn" (click)="openAddColumnModal()">+ Añadir otra columna</button>
+    </div>
+  </main>
+
+  <!-- Custom Modal -->
+  @if (isModalOpen()) {
+  <div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)" (click)="handleOverlayClick($event)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modalTitle() }}</h2>
+        <button class="close-btn" (click)="closeModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Título</label>
+          <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
+            placeholder="Introduce un título..." autofocus>
+        </div>
+
+        <div class="form-group" *ngIf="modalMode() !== 'LIST'">
+          <label>Descripción</label>
+          <textarea [value]="formDescription()" (input)="formDescription.set($any($event.target).value)"
+            placeholder="Añade una descripción más detallada..."></textarea>
+        </div>
+
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST'">
+          <div class="form-group flex-1">
+            <label>Esfuerzo (pts)</label>
+            <input type="number" [value]="formEffortPoints()"
+              (input)="formEffortPoints.set($any($event.target).valueAsNumber)" min="0">
+          </div>
+
+          <div class="form-group flex-2">
+            <label>Categoría</label>
+            <div class="select-wrapper">
+              <select [value]="formCategoryId()" (change)="formCategoryId.set($any($event.target).value)"
+                *ngIf="!showNewCategoryForm()">
+                <option [value]="null">Sin categoría</option>
+                @for (cat of categories(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              </select>
+              <button class="small-btn" (click)="toggleCategoryForm()">
+                {{ showNewCategoryForm() ? 'Cancelar' : '+ Nueva' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline Category Creation -->
+        <div class="category-creator" *ngIf="showNewCategoryForm() && modalMode() !== 'LIST'">
+          <div class="form-group">
+            <label>Nueva Categoría</label>
+            <div class="creator-row">
+              <input type="text" [value]="newCategoryName()" (input)="newCategoryName.set($any($event.target).value)"
+                placeholder="Nombre...">
+              <input type="color" [value]="newCategoryColor()"
+                (input)="newCategoryColor.set($any($event.target).value)">
+            </div>
+          </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="items-section" *ngIf="modalMode() !== 'LIST'">
+          <button class="toggle-items-btn" (click)="toggleItemsForm()">
+            {{ showItemsForm() ? '▼' : '▶' }} Artículos ({{ formItems().length }})
+          </button>
+
+          <div class="items-form" *ngIf="showItemsForm()">
+            <!-- New Item Input -->
+            <div class="add-item-form">
+              <div class="form-group">
+                <label>Nombre del artículo</label>
+                <input type="text" [value]="newItemName()" 
+                  (input)="newItemName.set($any($event.target).value)"
+                  placeholder="Nombre del artículo..." 
+                  (keyup.enter)="addItem()">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Cantidad</label>
+                  <input type="number" [value]="newItemQuantity()" 
+                    (input)="newItemQuantity.set($any($event.target).valueAsNumber)"
+                    min="1" max="9999">
+                </div>
+
+                <div class="form-group">
+                  <label>Precio (€)</label>
+                  <input type="number" [value]="newItemPrice()" 
+                    (input)="newItemPrice.set($any($event.target).valueAsNumber)"
+                    min="0" step="0.01">
+                </div>
+
+                <button class="add-item-btn" (click)="addItem()">Añadir</button>
+              </div>
+            </div>
+
+            <!-- Items List -->
+            <div class="items-list" *ngIf="formItems().length > 0">
+              @for (item of formItems(); track $index) {
+                <div class="item-row">
+                  <div class="item-info">
+                    <span class="item-name">{{ item.name }}</span>
+                    <span class="item-details">{{ item.quantity }} x {{ item.price.toFixed(2) }}€ = {{ (item.quantity * item.price).toFixed(2) }}€</span>
+                  </div>
+                  <button class="remove-item-btn" (click)="removeItem($index)">✕</button>
+                </div>
+              }
+
+              <div class="items-total">
+                <span>Total artículos:</span>
+                <span class="total-price">{{ itemsTotal().toFixed(2) }}€</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
+        <button class="submit-btn" [disabled]="!formTitle()" (click)="submitModal()">
+          @if (modalMode() === 'LIST') {
+            Añadir columna
+          } @else if (modalMode() === 'EDIT') {
+            Guardar cambios
+          } @else {
+            Añadir tarjeta
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Floating Action Button -->
+  <div class="fab-container">
+    <button class="fab-main" (click)="toggleMenuOptions()" [class.open]="showMenuOptions()">
+      ⚙️
+    </button>
+
+    @if (showMenuOptions()) {
+      <button class="fab-option" (click)="openFinancialSummary()">
+        📊 Resumen Financiero
+      </button>
+    }
+  </div>
+
+  <!-- Financial Summary Modal -->
+  @if (isFinancialSummaryOpen()) {
+  <div class="modal-overlay" (click)="closeFinancialSummary()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Resumen Financiero</h2>
+        <button class="close-btn" (click)="closeFinancialSummary()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Categoría</label>
+          <select [value]="summarySelectedCategoryId() || ''" (change)="summarySelectedCategoryId.set($any($event.target).value || null)">
+            <option [value]="''">Todas las categorías</option>
+            @for (cat of categories(); track cat.id) {
+              <option [value]="cat.id">{{ cat.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="financial-summary">
+          @if (getFinancialSummary(summarySelectedCategoryId()).items.length > 0) {
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>Artículo</th>
+                  <th>Cantidad</th>
+                  <th>Precio Unit.</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of getFinancialSummary(summarySelectedCategoryId()).items; track item.name) {
+                  <tr>
+                    <td class="item-name">{{ item.name }}</td>
+                    <td class="quantity">{{ item.quantity }}</td>
+                    <td class="price">{{ item.price.toFixed(2) }}€</td>
+                    <td class="subtotal">{{ item.subtotal.toFixed(2) }}€</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <div class="summary-total">
+              <span>Total:</span>
+              <span class="total-amount">{{ getFinancialSummary(summarySelectedCategoryId()).total.toFixed(2) }}€</span>
+            </div>
+          } @else {
+            <p class="no-items">No hay artículos para esta categoría</p>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeFinancialSummary()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  }
+</div>
