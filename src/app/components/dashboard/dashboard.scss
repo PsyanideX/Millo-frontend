@@ -368,9 +368,11 @@
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
 
   @media (max-width: 600px) {
     max-width: 95vw;
+    max-height: 90vh;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     margin-top: auto;
@@ -414,6 +416,26 @@
 
 .modal-body {
   padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c7d0;
+    border-radius: 4px;
+
+    &:hover {
+      background: #a5adba;
+    }
+  }
 
   .form-group {
     margin-bottom: 24px;
