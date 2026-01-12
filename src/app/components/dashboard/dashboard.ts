@@ -4,6 +4,7 @@ import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from 
 import { FormsModule } from '@angular/forms';
 import { TaskService } from '../../services/task';
 import { BoardService } from '../../services/board';
+import { AuthService } from '../../services/auth';
 import { Column, Category, Task, TaskItem, Board } from '../../models/task.model';
 
 @Component({
@@ -16,6 +17,7 @@ import { Column, Category, Task, TaskItem, Board } from '../../models/task.model
 export class DashboardComponent implements OnInit, AfterViewInit {
   private taskService = inject(TaskService);
   private boardService = inject(BoardService);
+  public authService = inject(AuthService);
 
   @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
 
@@ -36,9 +38,74 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Modal state
   isModalOpen = signal(false);
-  modalMode = signal<'LIST' | 'CARD' | 'EDIT'>('CARD');
+  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD'>('CARD');
   modalTitle = signal('');
   currentColumnId = signal<string | null>(null);
+
+
+
+  openAddBoardModal() {
+    this.modalMode.set('BOARD');
+    this.modalTitle.set('Crear nuevo tablero');
+    this.formTitle.set('');
+    this.formDescription.set('');
+    this.isModalOpen.set(true);
+    this.isAppsMenuOpen.set(false); // Close sidebar
+  }
+
+
+
+  submitModal() {
+    const title = this.formTitle();
+    if (!title) return;
+
+    if (this.modalMode() === 'BOARD') {
+      this.createBoard(title, this.formDescription());
+      this.closeModal();
+      return;
+    }
+
+    const currentBoardId = this.currentBoard()?.id;
+    if (!currentBoardId) {
+      console.error('No current board selected');
+      return;
+    }
+
+    if (this.modalMode() === 'LIST') {
+      this.addColumn(title, currentBoardId);
+    } else if (this.modalMode() === 'CARD') {
+      // ... (existing logic)
+      if (this.showNewCategoryForm() && this.newCategoryName()) {
+        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
+          this.categories.update(prev => [...prev, newCat]);
+          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
+        });
+      } else {
+        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
+      }
+    } else if (this.modalMode() === 'EDIT') {
+      // ... (existing logic)
+      if (this.showNewCategoryForm() && this.newCategoryName()) {
+        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
+          this.categories.update(prev => [...prev, newCat]);
+          this.editCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
+        });
+      } else {
+        this.editCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
+      }
+    }
+    this.closeModal();
+  }
+
+  private createBoard(name: string, description: string) {
+    this.boardService.createBoard({ name, description }).subscribe({
+      next: (newBoard) => {
+        this.boards.update(prev => [...prev, newBoard]);
+        this.switchBoard(newBoard.id);
+      },
+      error: (err) => console.error('Error creating board:', err)
+    });
+  }
   currentTask = signal<Task | null>(null);
   overlayMouseDown = false;
 
@@ -68,6 +135,22 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Drag state
   isDragging = signal(false);
 
+  // Apps Menu state
+  isAppsMenuOpen = signal(false);
+
+  toggleAppsMenu() {
+    this.isAppsMenuOpen.update(prev => !prev);
+  }
+
+  switchBoard(boardId: string) {
+    if (this.currentBoard()?.id === boardId) {
+      this.isAppsMenuOpen.set(false);
+      return;
+    }
+    this.loadBoard(boardId);
+    this.isAppsMenuOpen.set(false);
+  }
+
   ngOnInit() {
     this.loadInitialData();
   }
@@ -85,7 +168,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       next: (boards) => {
         this.boards.set(boards);
         const primaryBoard = boards.find(b => b.isPrimary) || boards[0];
-        
+
         if (primaryBoard) {
           this.loadBoard(primaryBoard.id);
         }
@@ -381,39 +464,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return { items, total };
   }
 
-  submitModal() {
-    const title = this.formTitle();
-    if (!title) return;
 
-    const currentBoardId = this.currentBoard()?.id;
-    if (!currentBoardId) {
-      console.error('No current board selected');
-      return;
-    }
-
-    if (this.modalMode() === 'LIST') {
-      this.addColumn(title, currentBoardId);
-    } else if (this.modalMode() === 'CARD') {
-      if (this.showNewCategoryForm() && this.newCategoryName()) {
-        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
-          this.categories.update(prev => [...prev, newCat]);
-          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
-        });
-      } else {
-        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
-      }
-    } else if (this.modalMode() === 'EDIT') {
-      if (this.showNewCategoryForm() && this.newCategoryName()) {
-        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
-          this.categories.update(prev => [...prev, newCat]);
-          this.editCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
-        });
-      } else {
-        this.editCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints(), this.formPriority(), this.formEndDate());
-      }
-    }
-    this.closeModal();
-  }
 
   private addColumn(name: string, boardId: string) {
     this.taskService.createColumn(name, boardId, this.columns().length).subscribe({

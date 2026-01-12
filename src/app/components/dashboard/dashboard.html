@@ -1,7 +1,15 @@
 <div class="millo-container" cdkDropListGroup>
   <header class="app-header">
     <div class="board-info">
-      <h1>Millo Board</h1>
+      <button class="icon-btn hamburger" (click)="toggleAppsMenu()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <h1>{{ currentBoard()?.name || 'Millo Board' }}</h1>
     </div>
 
     <div class="filters">
@@ -83,7 +91,7 @@
             placeholder="Añade una descripción más detallada..."></textarea>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
           <div class="form-group flex-1">
             <label>Esfuerzo (pts)</label>
             <input type="number" [value]="formEffortPoints()"
@@ -107,7 +115,7 @@
           </div>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
           <div class="form-group flex-1">
             <label>Prioridad</label>
             <select [value]="formPriority()" (change)="formPriority.set($any($event.target).value)">
@@ -123,7 +131,8 @@
         </div>
 
         <!-- Inline Category Creation -->
-        <div class="category-creator" *ngIf="showNewCategoryForm() && modalMode() !== 'LIST'">
+        <div class="category-creator"
+          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
           <div class="form-group">
             <label>Nueva Categoría</label>
             <div class="creator-row">
@@ -136,7 +145,7 @@
         </div>
 
         <!-- Items Section -->
-        <div class="items-section" *ngIf="modalMode() !== 'LIST'">
+        <div class="items-section" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
           <button class="toggle-items-btn" (click)="toggleItemsForm()">
             {{ showItemsForm() ? '▼' : '▶' }} Artículos ({{ formItems().length }})
           </button>
@@ -196,6 +205,8 @@
           Añadir columna
           } @else if (modalMode() === 'EDIT') {
           Guardar cambios
+          } @else if (modalMode() === 'BOARD') {
+          Crear tablero
           } @else {
           Añadir tarjeta
           }
@@ -276,6 +287,56 @@
         <button class="cancel-btn" (click)="closeFinancialSummary()">Cerrar</button>
       </div>
     </div>
+  </div>
+  }
+
+  <!-- Apps Menu Sidebar -->
+  @if (isAppsMenuOpen()) {
+  <div class="apps-menu-overlay" (click)="toggleAppsMenu()">
+    <aside class="apps-sidebar" (click)="$event.stopPropagation()">
+      <header>
+        <div class="sidebar-header-content">
+          <div class="logo-circle">M</div>
+          <h2>Mis Tableros</h2>
+        </div>
+        <button class="close-sidebar-btn" (click)="toggleAppsMenu()">&times;</button>
+      </header>
+
+      <div class="sidebar-content">
+        <div class="sidebar-section">
+          <h3>Tableros</h3>
+          <ul class="board-list">
+            @for (board of boards(); track board.id) {
+            <li [class.active]="currentBoard()?.id === board.id" (click)="switchBoard(board.id)">
+              <div class="board-item-content">
+                <span class="board-color-dot" [style.background-color]="'#e3a008'"></span>
+                <span class="board-name">{{ board.name }}</span>
+              </div>
+              @if (currentBoard()?.id === board.id) {
+              <span class="active-indicator">✓</span>
+              }
+            </li>
+            }
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <button class="create-board-btn" (click)="openAddBoardModal()">
+            <span>+</span> Crear nuevo tablero
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="avatar">{{ authService.currentUser()?.name?.charAt(0)?.toUpperCase() || 'U' }}</div>
+          <div class="user-info">
+            <span class="username">{{ authService.currentUser()?.name || 'Usuario' }}</span>
+            <span class="workspace">{{ currentBoard()?.name || 'Tablero Principal' }}</span>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
   }
 </div>
