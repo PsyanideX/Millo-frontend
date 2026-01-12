@@ -72,11 +72,13 @@ export class App implements OnInit, AfterViewInit {
         this.loadTasksForAllColumns();
       },
       error: () => {
-        // Mock columns if backend fails
+        // Mock columns if backend fails (deprecated - this component is not used)
+        // Note: boardId is required but this is a deprecated component
+        const mockBoardId = 'mock-board-id';
         const mockCols: Column[] = [
-          { id: 'c1', name: 'Pendientes', order: 1, createdAt: new Date(), tasks: [] },
-          { id: 'c2', name: 'En Proceso', order: 2, createdAt: new Date(), tasks: [] },
-          { id: 'c3', name: 'Hecho', order: 3, createdAt: new Date(), tasks: [] }
+          { id: 'c1', name: 'Pendientes', order: 1, boardId: mockBoardId, createdAt: new Date(), tasks: [] },
+          { id: 'c2', name: 'En Proceso', order: 2, boardId: mockBoardId, createdAt: new Date(), tasks: [] },
+          { id: 'c3', name: 'Hecho', order: 3, boardId: mockBoardId, createdAt: new Date(), tasks: [] }
         ];
         this.columns.set(mockCols);
       }
@@ -194,28 +196,14 @@ export class App implements OnInit, AfterViewInit {
   }
 
   submitModal() {
-    const title = this.formTitle();
-    if (!title) return;
-
-    if (this.modalMode() === 'LIST') {
-      this.addColumn(title);
-    } else {
-      if (this.showNewCategoryForm() && this.newCategoryName()) {
-        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
-          this.categories.update(prev => [...prev, newCat]);
-          this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints());
-        });
-      } else {
-        this.addCard(title, this.formDescription(), this.formCategoryId(), this.formEffortPoints());
-      }
-    }
+    // Deprecated component - this should not be called
+    console.warn('App component submitModal called - this component is deprecated');
     this.closeModal();
   }
 
   private addColumn(name: string) {
-    this.taskService.createColumn(name, this.columns().length).subscribe(newCol => {
-      this.columns.update(prev => [...prev, { ...newCol, tasks: [] }]);
-    });
+    // Deprecated component - this should not be called
+    console.warn('App component addColumn called - this component is deprecated');
   }
 
   private addCard(title: string, description: string, categoryId: string | null, effortPoints: number) {

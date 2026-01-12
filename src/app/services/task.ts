@@ -16,12 +16,16 @@ export class TaskService {
   columns = signal<Column[]>([]);
 
   // Categories
-  getCategories(): Observable<Category[]> {
-    return this.http.get<Category[]>(`${this.apiUrl}/categories`);
+  getCategories(boardId?: string): Observable<Category[]> {
+    let url = `${this.apiUrl}/categories`;
+    if (boardId) {
+      url += `?boardId=${boardId}`;
+    }
+    return this.http.get<Category[]>(url);
   }
 
-  createCategory(name: string, color: string): Observable<Category> {
-    return this.http.post<Category>(`${this.apiUrl}/categories`, { name, color });
+  createCategory(name: string, color: string, boardId: string): Observable<Category> {
+    return this.http.post<Category>(`${this.apiUrl}/categories`, { name, color, boardId });
   }
 
   updateCategory(id: string, data: Partial<Category>): Observable<Category> {
@@ -33,12 +37,16 @@ export class TaskService {
   }
 
   // Columns
-  getColumns(): Observable<Column[]> {
-    return this.http.get<Column[]>(`${this.apiUrl}/columns`);
+  getColumns(boardId?: string): Observable<Column[]> {
+    let url = `${this.apiUrl}/columns`;
+    if (boardId) {
+      url += `?boardId=${boardId}`;
+    }
+    return this.http.get<Column[]>(url);
   }
 
-  createColumn(name: string, order?: number): Observable<Column> {
-    return this.http.post<Column>(`${this.apiUrl}/columns`, { name, order });
+  createColumn(name: string, boardId: string, order?: number): Observable<Column> {
+    return this.http.post<Column>(`${this.apiUrl}/columns`, { name, order, boardId });
   }
 
   updateColumn(id: string, data: Partial<Column>): Observable<Column> {
@@ -50,9 +58,10 @@ export class TaskService {
   }
 
   // Tasks
-  getTasks(categoryId?: string, columnId?: string): Observable<Task[]> {
+  getTasks(boardId?: string, categoryId?: string, columnId?: string): Observable<Task[]> {
     let url = `${this.apiUrl}/tasks`;
     const params: string[] = [];
+    if (boardId) params.push(`boardId=${boardId}`);
     if (categoryId) params.push(`categoryId=${categoryId}`);
     if (columnId) params.push(`columnId=${columnId}`);
 

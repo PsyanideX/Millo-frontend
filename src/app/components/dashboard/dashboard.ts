@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { TaskService } from '../../services/task';
-import { Column, Category, Task, TaskItem } from '../../models/task.model';
+import { BoardService } from '../../services/board';
+import { Column, Category, Task, TaskItem, Board } from '../../models/task.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -14,8 +15,13 @@ import { Column, Category, Task, TaskItem } from '../../models/task.model';
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
   private taskService = inject(TaskService);
+  private boardService = inject(BoardService);
 
   @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
+
+  // Board state
+  currentBoard = signal<Board | null>(null);
+  boards = signal<Board[]>([]);
 
   // Board structure (now based on Columns as per API)
   columns = signal<Column[]>([]);
@@ -74,56 +80,91 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadInitialData() {
-    // 1. Load Categories
-    this.taskService.getCategories().subscribe(data => {
-      this.categories.set(data);
-    });
-
-    // 2. Load Columns and then Tasks
-    this.taskService.getColumns().subscribe({
-      next: (columns) => {
-        this.columns.set(columns.sort((a, b) => a.order - b.order));
-        this.loadTasksForAllColumns();
+    // 1. Load boards and find primary board
+    this.boardService.getBoards().subscribe({
+      next: (boards) => {
+        this.boards.set(boards);
+        const primaryBoard = boards.find(b => b.isPrimary) || boards[0];
+        
+        if (primaryBoard) {
+          this.loadBoard(primaryBoard.id);
+        }
       },
-      error: () => {
-        // Mock columns if backend fails
-        const mockCols: Column[] = [
-          { id: 'c1', name: 'Pendientes', order: 1, createdAt: new Date(), tasks: [] },
-          { id: 'c2', name: 'En Proceso', order: 2, createdAt: new Date(), tasks: [] },
-          { id: 'c3', name: 'Hecho', order: 3, createdAt: new Date(), tasks: [] }
-        ];
-        this.columns.set(mockCols);
+      error: (err) => {
+        console.error('Error loading boards:', err);
       }
     });
   }
 
-  loadTasksForAllColumns() {
-    this.taskService.getTasks().subscribe(tasks => {
-      // Group tasks by columnId
-      this.columns.update(cols => cols.map(col => {
-        const colTasks = tasks.filter(t => t.columnId === col.id);
+  loadBoard(boardId: string) {
+    // 1. Load board details
+    this.boardService.getBoard(boardId).subscribe({
+      next: (board) => {
+        this.currentBoard.set(board);
+        this.loadBoardData(boardId);
+      },
+      error: (err) => {
+        console.error('Error loading board:', err);
+      }
+    });
+  }
 
-        // Sort tasks: Priority (High > Medium > Low), then EndDate (Ascending)
-        const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+  loadBoardData(boardId: string) {
+    // 1. Load Categories for this board
+    this.taskService.getCategories(boardId).subscribe({
+      next: (data) => {
+        this.categories.set(data);
+      },
+      error: (err) => {
+        console.error('Error loading categories:', err);
+      }
+    });
 
-        colTasks.sort((a, b) => {
-          const pA = priorityOrder[a.priority ?? 'Low'] ?? 1;
-          const pB = priorityOrder[b.priority ?? 'Low'] ?? 1;
+    // 2. Load Columns for this board
+    this.taskService.getColumns(boardId).subscribe({
+      next: (columns) => {
+        this.columns.set(columns.sort((a, b) => a.order - b.order));
+        this.loadTasksForAllColumns(boardId);
+      },
+      error: (err) => {
+        console.error('Error loading columns:', err);
+        this.columns.set([]);
+      }
+    });
+  }
 
-          if (pA !== pB) return pB - pA; // Descending priority
+  loadTasksForAllColumns(boardId: string) {
+    this.taskService.getTasks(boardId).subscribe({
+      next: (tasks) => {
+        // Group tasks by columnId
+        this.columns.update(cols => cols.map(col => {
+          const colTasks = tasks.filter(t => t.columnId === col.id);
 
-          // If priorities are equal, sort by endDate (closer dates first)
-          const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_VALUE;
-          const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_VALUE;
+          // Sort tasks: Priority (High > Medium > Low), then EndDate (Ascending)
+          const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
 
-          return dateA - dateB;
-        });
+          colTasks.sort((a, b) => {
+            const pA = priorityOrder[a.priority ?? 'Low'] ?? 1;
+            const pB = priorityOrder[b.priority ?? 'Low'] ?? 1;
 
-        return {
-          ...col,
-          tasks: colTasks
-        };
-      }));
+            if (pA !== pB) return pB - pA; // Descending priority
+
+            // If priorities are equal, sort by endDate (closer dates first)
+            const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_VALUE;
+            const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_VALUE;
+
+            return dateA - dateB;
+          });
+
+          return {
+            ...col,
+            tasks: colTasks
+          };
+        }));
+      },
+      error: (err) => {
+        console.error('Error loading tasks:', err);
+      }
     });
   }
 
@@ -344,11 +385,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const title = this.formTitle();
     if (!title) return;
 
+    const currentBoardId = this.currentBoard()?.id;
+    if (!currentBoardId) {
+      console.error('No current board selected');
+      return;
+    }
+
     if (this.modalMode() === 'LIST') {
-      this.addColumn(title);
+      this.addColumn(title, currentBoardId);
     } else if (this.modalMode() === 'CARD') {
       if (this.showNewCategoryForm() && this.newCategoryName()) {
-        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
+        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
           this.categories.update(prev => [...prev, newCat]);
           this.addCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
         });
@@ -357,7 +404,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       }
     } else if (this.modalMode() === 'EDIT') {
       if (this.showNewCategoryForm() && this.newCategoryName()) {
-        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor()).subscribe(newCat => {
+        this.taskService.createCategory(this.newCategoryName(), this.newCategoryColor(), currentBoardId).subscribe(newCat => {
           this.categories.update(prev => [...prev, newCat]);
           this.editCard(title, this.formDescription(), newCat.id, this.formEffortPoints(), this.formPriority(), this.formEndDate());
         });
@@ -368,9 +415,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.closeModal();
   }
 
-  private addColumn(name: string) {
-    this.taskService.createColumn(name, this.columns().length).subscribe(newCol => {
-      this.columns.update(prev => [...prev, { ...newCol, tasks: [] }]);
+  private addColumn(name: string, boardId: string) {
+    this.taskService.createColumn(name, boardId, this.columns().length).subscribe({
+      next: (newCol) => {
+        this.columns.update(prev => [...prev, { ...newCol, tasks: [] }]);
+      },
+      error: (err) => {
+        console.error('Error creating column:', err);
+      }
     });
   }
 
