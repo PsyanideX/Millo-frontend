@@ -9,7 +9,23 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
-      <h1>{{ currentBoard()?.name || 'Millo Board' }}</h1>
+      <h1>
+        {{ currentBoard()?.name || 'Millo Board' }}
+        @if (currentBoard() && currentBoard()?.ownerId !== authService.currentUser()?.id) {
+        <span class="header-shared-badge">Invitado</span>
+        }
+      </h1>
+      <button class="share-btn" (click)="openShareModal()"
+        *ngIf="currentBoard()?.ownerId === authService.currentUser()?.id">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <line x1="20" y1="8" x2="20" y2="14"></line>
+          <line x1="23" y1="11" x2="17" y2="11"></line>
+        </svg>
+        Compartir
+      </button>
     </div>
 
     <div class="filters">
@@ -79,19 +95,34 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group">
+        <div class="form-group" *ngIf="modalMode() !== 'SHARE'">
           <label>Título</label>
           <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
             placeholder="Introduce un título..." autofocus>
         </div>
 
-        <div class="form-group" *ngIf="modalMode() !== 'LIST'">
+        <div class="form-group" *ngIf="modalMode() === 'SHARE'">
+          <label>Email del usuario</label>
+          <input type="email" [value]="formEmail()" (input)="formEmail.set($any($event.target).value)"
+            placeholder="usuario@ejemplo.com" autofocus>
+        </div>
+
+        <div class="form-group" *ngIf="modalMode() === 'SHARE'">
+          <label>Rol</label>
+          <select [value]="formRole()" (change)="formRole.set($any($event.target).value)">
+            <option value="viewer">Viewer (Solo ver)</option>
+            <option value="editor">Editor (Editar)</option>
+            <option value="owner">Owner (Propietario)</option>
+          </select>
+        </div>
+
+        <div class="form-group" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'SHARE'">
           <label>Descripción</label>
           <textarea [value]="formDescription()" (input)="formDescription.set($any($event.target).value)"
             placeholder="Añade una descripción más detallada..."></textarea>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
           <div class="form-group flex-1">
             <label>Esfuerzo (pts)</label>
             <input type="number" [value]="formEffortPoints()"
@@ -115,7 +146,7 @@
           </div>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
           <div class="form-group flex-1">
             <label>Prioridad</label>
             <select [value]="formPriority()" (change)="formPriority.set($any($event.target).value)">
@@ -132,7 +163,7 @@
 
         <!-- Inline Category Creation -->
         <div class="category-creator"
-          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
+          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
           <div class="form-group">
             <label>Nueva Categoría</label>
             <div class="creator-row">
@@ -145,7 +176,7 @@
         </div>
 
         <!-- Items Section -->
-        <div class="items-section" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD'">
+        <div class="items-section" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
           <button class="toggle-items-btn" (click)="toggleItemsForm()">
             {{ showItemsForm() ? '▼' : '▶' }} Artículos ({{ formItems().length }})
           </button>
@@ -200,13 +231,17 @@
 
       <div class="modal-footer">
         <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
-        <button class="submit-btn" [disabled]="!formTitle()" (click)="submitModal()">
+        <button class="submit-btn"
+          [disabled]="(modalMode() !== 'SHARE' && !formTitle()) || (modalMode() === 'SHARE' && !formEmail())"
+          (click)="submitModal()">
           @if (modalMode() === 'LIST') {
           Añadir columna
           } @else if (modalMode() === 'EDIT') {
           Guardar cambios
           } @else if (modalMode() === 'BOARD') {
           Crear tablero
+          } @else if (modalMode() === 'SHARE') {
+          Compartir
           } @else {
           Añadir tarjeta
           }
@@ -303,22 +338,63 @@
       </header>
 
       <div class="sidebar-content">
+        <!-- Tablero Principal -->
+        @if (primaryBoardSignal()) {
         <div class="sidebar-section">
-          <h3>Tableros</h3>
+          <h3>Tablero Principal</h3>
           <ul class="board-list">
-            @for (board of boards(); track board.id) {
+            @let pBoard = primaryBoardSignal()!;
+            <li [class.active]="currentBoard()?.id === pBoard.id" (click)="switchBoard(pBoard.id)">
+              <div class="board-item-content">
+                <span class="board-color-dot" [class.owning]="pBoard.ownerId === authService.currentUser()?.id"
+                  [class.shared]="pBoard.ownerId !== authService.currentUser()?.id"
+                  [style.background-color]="pBoard.ownerId === authService.currentUser()?.id ? '#e3a008' : '#4a90e2'"></span>
+                <span class="board-name">{{ pBoard.name }}</span>
+              </div>
+              <div class="board-item-actions">
+                @if (pBoard.ownerId !== authService.currentUser()?.id) { <span class="shared-badge">Invitado</span> }
+                <span class="primary-badge">Principal</span>
+                @if (currentBoard()?.id === pBoard.id) { <span class="active-indicator">✓</span> }
+              </div>
+            </li>
+          </ul>
+        </div>
+        }
+
+        <!-- Tableros Secundarios -->
+        @if (secondaryBoards().length > 0 || sharedBoards().length > 0) {
+        <div class="sidebar-section">
+          <h3>Tableros Secundarios</h3>
+          <ul class="board-list">
+            <!-- Owned Secondary Boards -->
+            @for (board of secondaryBoards(); track board.id) {
             <li [class.active]="currentBoard()?.id === board.id" (click)="switchBoard(board.id)">
               <div class="board-item-content">
-                <span class="board-color-dot" [style.background-color]="'#e3a008'"></span>
+                <span class="board-color-dot owning" [style.background-color]="'#e3a008'"></span>
                 <span class="board-name">{{ board.name }}</span>
               </div>
-              @if (currentBoard()?.id === board.id) {
-              <span class="active-indicator">✓</span>
-              }
+              <div class="board-item-actions">
+                @if (currentBoard()?.id === board.id) { <span class="active-indicator">✓</span> }
+              </div>
+            </li>
+            }
+
+            <!-- Shared Boards -->
+            @for (board of sharedBoards(); track board.id) {
+            <li [class.active]="currentBoard()?.id === board.id" (click)="switchBoard(board.id)">
+              <div class="board-item-content">
+                <span class="board-color-dot shared" [style.background-color]="'#4a90e2'"></span>
+                <span class="board-name">{{ board.name }}</span>
+              </div>
+              <div class="board-item-actions">
+                <span class="shared-badge">Invitado</span>
+                @if (currentBoard()?.id === board.id) { <span class="active-indicator">✓</span> }
+              </div>
             </li>
             }
           </ul>
         </div>
+        }
 
         <div class="sidebar-section">
           <button class="create-board-btn" (click)="openAddBoardModal()">

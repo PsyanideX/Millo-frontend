@@ -24,6 +24,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Board state
   currentBoard = signal<Board | null>(null);
   boards = signal<Board[]>([]);
+  primaryBoardSignal = computed(() => this.boards().find(b => b.isPrimary));
+  secondaryBoards = computed(() => this.boards().filter(b => b.ownerId === this.authService.currentUser()?.id && !b.isPrimary));
+  sharedBoards = computed(() => this.boards().filter(b => !b.isPrimary && b.ownerId !== this.authService.currentUser()?.id));
 
   // Board structure (now based on Columns as per API)
   columns = signal<Column[]>([]);
@@ -38,7 +41,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Modal state
   isModalOpen = signal(false);
-  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD'>('CARD');
+  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'SHARE'>('CARD');
   modalTitle = signal('');
   currentColumnId = signal<string | null>(null);
 
@@ -53,10 +56,25 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.isAppsMenuOpen.set(false); // Close sidebar
   }
 
+  openShareModal() {
+    this.modalMode.set('SHARE');
+    this.modalTitle.set('Compartir tablero');
+    this.formEmail.set('');
+    this.formRole.set('viewer');
+    this.isModalOpen.set(true);
+  }
+
 
 
   submitModal() {
     const title = this.formTitle();
+    // For SHARE mode, title is not required, pass validation
+    if (this.modalMode() === 'SHARE') {
+      this.shareBoard();
+      this.closeModal();
+      return;
+    }
+
     if (!title) return;
 
     if (this.modalMode() === 'BOARD') {
@@ -106,12 +124,33 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       error: (err) => console.error('Error creating board:', err)
     });
   }
+
+  private shareBoard() {
+    const boardId = this.currentBoard()?.id;
+    const email = this.formEmail();
+    const role = this.formRole();
+
+    if (!boardId || !email) return;
+
+    this.boardService.addMember(boardId, { email, role }).subscribe({
+      next: (member) => {
+        console.log('Member added successfully', member);
+        alert(`Usuario ${member.user.email} añadido como ${member.role}`);
+      },
+      error: (err) => {
+        console.error('Error adding member:', err);
+        alert('Error al añadir miembro: ' + (err.error?.message || err.message));
+      }
+    });
+  }
   currentTask = signal<Task | null>(null);
   overlayMouseDown = false;
 
   // Form signals
   formTitle = signal('');
   formDescription = signal('');
+  formEmail = signal('');
+  formRole = signal<'viewer' | 'editor' | 'owner'>('viewer');
   formCategoryId = signal<string | null>(null);
   formPriority = signal<"Low" | "Medium" | "High">('Low');
   formEndDate = signal<string>('');
