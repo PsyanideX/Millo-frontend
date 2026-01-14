@@ -425,7 +425,6 @@
               <div class="board-item-actions">
                 @if (pBoard.ownerId !== authService.currentUser()?.id) { <span class="shared-badge">Invitado</span> }
                 <span class="primary-badge">Principal</span>
-                @if (currentBoard()?.id === pBoard.id) { <span class="active-indicator">✓</span> }
               </div>
             </li>
           </ul>
@@ -445,7 +444,10 @@
                 <span class="board-name">{{ board.name }}</span>
               </div>
               <div class="board-item-actions">
-                @if (currentBoard()?.id === board.id) { <span class="active-indicator">✓</span> }
+                <button class="set-primary-btn" (click)="setPrimaryBoard($event, board.id)"
+                  title="Marcar como principal">
+                  ⭐
+                </button>
               </div>
             </li>
             }
@@ -458,8 +460,11 @@
                 <span class="board-name">{{ board.name }}</span>
               </div>
               <div class="board-item-actions">
+                <button class="set-primary-btn" (click)="setPrimaryBoard($event, board.id)"
+                  title="Marcar como principal">
+                  ⭐
+                </button>
                 <span class="shared-badge">Invitado</span>
-                @if (currentBoard()?.id === board.id) { <span class="active-indicator">✓</span> }
               </div>
             </li>
             }

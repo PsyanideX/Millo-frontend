@@ -278,6 +278,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.isAppsMenuOpen.set(false);
   }
 
+  setPrimaryBoard(event: MouseEvent, boardId: string) {
+    event.stopPropagation();
+    this.boardService.setPrimaryBoard(boardId).subscribe({
+      next: () => {
+        // Refresh boards to reflect the new primary status
+        this.boardService.getBoards().subscribe(boards => {
+          this.boards.set(boards);
+        });
+      },
+      error: (err) => console.error('Error setting primary board:', err)
+    });
+  }
+
   ngOnInit() {
     this.loadInitialData();
   }

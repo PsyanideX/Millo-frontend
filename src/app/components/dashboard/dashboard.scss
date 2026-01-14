@@ -1249,6 +1249,25 @@
               font-weight: bold;
               font-size: 1rem;
             }
+
+            .set-primary-btn {
+              background: transparent;
+              border: none;
+              cursor: pointer;
+              font-size: 0.85rem;
+              padding: 2px;
+              border-radius: 4px;
+              opacity: 0.4;
+              filter: grayscale(1);
+              transition: all 0.2s;
+
+              &:hover {
+                opacity: 1;
+                filter: grayscale(0);
+                background: rgba(0, 0, 0, 0.05);
+                transform: scale(1.1);
+              }
+            }
           }
 
           &:hover {
