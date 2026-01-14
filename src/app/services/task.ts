@@ -83,4 +83,8 @@ export class TaskService {
   deleteTask(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/tasks/${id}`);
   }
+
+  moveTask(id: string, data: { targetBoardId: string; targetColumnId: string; categoryId?: string }): Observable<Task> {
+    return this.http.post<Task>(`${this.apiUrl}/tasks/${id}/move`, data);
+  }
 }

@@ -26,6 +26,17 @@
         </svg>
         Compartir
       </button>
+
+      <!-- Selection Actions -->
+      <div class="selection-actions" *ngIf="selectedTaskIds().size > 0">
+        <span class="selection-count">{{ selectedTaskIds().size }} seleccionado(s)</span>
+        <button class="bulk-move-btn" (click)="openMoveTasksModal()">
+          Mover a...
+        </button>
+        <button class="clear-selection-btn" (click)="clearSelection()">
+          Cancelar
+        </button>
+      </div>
     </div>
 
     <div class="filters">
@@ -53,7 +64,12 @@
           @for (task of column.tasks; track task.id) {
           @if (!selectedCategoryId() || task.categoryId === selectedCategoryId()) {
           <article class="card" cdkDrag [cdkDragData]="task" (cdkDragStarted)="onDragStarted()"
-            (cdkDragEnded)="onDragEnded()" (click)="openEditCardModal(task)">
+            (cdkDragEnded)="onDragEnded()"
+            (click)="selectedTaskIds().size > 0 ? toggleTaskSelection(task.id, $event) : openEditCardModal(task)"
+            [class.selected]="selectedTaskIds().has(task.id)">
+            <div class="card-selection-overlay" (click)="toggleTaskSelection(task.id, $event)">
+              <div class="selection-checkbox" [class.checked]="selectedTaskIds().has(task.id)"></div>
+            </div>
             <div class="card-content">
               <div class="card-tags">
                 <div class="category-tag" [style.background-color]="task.category?.color" title="Categoría"></div>
@@ -95,34 +111,85 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group" *ngIf="modalMode() !== 'SHARE'">
+        <div class="form-group" *ngIf="modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <label>Título</label>
           <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
             placeholder="Introduce un título..." autofocus>
         </div>
 
         <div class="form-group" *ngIf="modalMode() === 'SHARE'">
-          <label>Email del usuario</label>
-          <input type="email" [value]="formEmail()" (input)="formEmail.set($any($event.target).value)"
-            placeholder="usuario@ejemplo.com" autofocus>
+          <label>Añadir nuevo miembro</label>
+          <div class="share-input-group">
+            <input type="email" [value]="formEmail()" (input)="formEmail.set($any($event.target).value)"
+              placeholder="usuario@ejemplo.com" autofocus (keyup.enter)="shareBoard()">
+            <select [value]="formRole()" (change)="formRole.set($any($event.target).value)">
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
+              <option value="owner">Owner</option>
+            </select>
+            <button class="add-member-btn" [disabled]="!formEmail()" (click)="shareBoard()">+</button>
+          </div>
         </div>
 
-        <div class="form-group" *ngIf="modalMode() === 'SHARE'">
-          <label>Rol</label>
-          <select [value]="formRole()" (change)="formRole.set($any($event.target).value)">
-            <option value="viewer">Viewer (Solo ver)</option>
-            <option value="editor">Editor (Editar)</option>
-            <option value="owner">Owner (Propietario)</option>
-          </select>
+        <!-- Members List -->
+        <div class="members-section" *ngIf="modalMode() === 'SHARE'">
+          <label>Miembros del tablero ({{ boardMembers().length }})</label>
+          <div class="members-list">
+            @for (member of boardMembers(); track member.id) {
+            <div class="member-item">
+              <div class="member-info">
+                <div class="member-avatar">{{ member.user.name.charAt(0).toUpperCase() }}</div>
+                <div class="member-details">
+                  <span class="member-name">{{ member.user.name }}</span>
+                  <span class="member-email">{{ member.user.email }}</span>
+                </div>
+              </div>
+              <div class="member-actions">
+                <span class="member-role" [class]="member.role">{{ member.role }}</span>
+                @if (member.role !== 'owner' || (boardMembers().length > 1 && member.userId !==
+                currentBoard()?.ownerId)) {
+                <button class="remove-member-btn" title="Eliminar miembro" (click)="removeMember(member.id)">×</button>
+                }
+              </div>
+            </div>
+            }
+          </div>
         </div>
 
-        <div class="form-group" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'SHARE'">
+        <div class="move-selection-section" *ngIf="modalMode() === 'MOVE'">
+          <div class="form-group">
+            <label>Seleccionar Tablero Destino</label>
+            <select [ngModel]="targetBoardId()" (ngModelChange)="onTargetBoardChange($event)">
+              <option [ngValue]="null" disabled>Elige un tablero...</option>
+              @for (board of boards(); track board.id) {
+              @if (board.id !== currentBoard()?.id) {
+              <option [value]="board.id">{{ board.name }}</option>
+              }
+              }
+            </select>
+          </div>
+
+          @if (targetBoardId()) {
+          <div class="form-group">
+            <label>Seleccionar Columna</label>
+            <select [ngModel]="targetColumnId()" (ngModelChange)="targetColumnId.set($event)">
+              <option [ngValue]="null" disabled>Elige una columna...</option>
+              @for (col of targetBoardColumns(); track col.id) {
+              <option [value]="col.id">{{ col.name }}</option>
+              }
+            </select>
+          </div>
+          }
+        </div>
+
+        <div class="form-group" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <label>Descripción</label>
           <textarea [value]="formDescription()" (input)="formDescription.set($any($event.target).value)"
             placeholder="Añade una descripción más detallada..."></textarea>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
+        <div class="modal-row"
+          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <div class="form-group flex-1">
             <label>Esfuerzo (pts)</label>
             <input type="number" [value]="formEffortPoints()"
@@ -146,7 +213,8 @@
           </div>
         </div>
 
-        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
+        <div class="modal-row"
+          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <div class="form-group flex-1">
             <label>Prioridad</label>
             <select [value]="formPriority()" (change)="formPriority.set($any($event.target).value)">
@@ -163,7 +231,7 @@
 
         <!-- Inline Category Creation -->
         <div class="category-creator"
-          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
+          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <div class="form-group">
             <label>Nueva Categoría</label>
             <div class="creator-row">
@@ -176,7 +244,8 @@
         </div>
 
         <!-- Items Section -->
-        <div class="items-section" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE'">
+        <div class="items-section"
+          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <button class="toggle-items-btn" (click)="toggleItemsForm()">
             {{ showItemsForm() ? '▼' : '▶' }} Artículos ({{ formItems().length }})
           </button>
@@ -232,8 +301,8 @@
       <div class="modal-footer">
         <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
         <button class="submit-btn"
-          [disabled]="(modalMode() !== 'SHARE' && !formTitle()) || (modalMode() === 'SHARE' && !formEmail())"
-          (click)="submitModal()">
+          [disabled]="(modalMode() !== 'SHARE' && modalMode() !== 'MOVE' && !formTitle()) || (modalMode() === 'MOVE' && (!targetBoardId() || !targetColumnId()))"
+          (click)="modalMode() === 'SHARE' ? closeModal() : submitModal()">
           @if (modalMode() === 'LIST') {
           Añadir columna
           } @else if (modalMode() === 'EDIT') {
@@ -241,7 +310,9 @@
           } @else if (modalMode() === 'BOARD') {
           Crear tablero
           } @else if (modalMode() === 'SHARE') {
-          Compartir
+          Listo
+          } @else if (modalMode() === 'MOVE') {
+          Mover {{ selectedTaskIds().size }} tareas
           } @else {
           Añadir tarjeta
           }

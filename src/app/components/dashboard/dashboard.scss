@@ -1377,3 +1377,324 @@
     height: 20px;
   }
 }
+
+/* Share Modal Member Styles */
+.share-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: white;
+  padding: 4px;
+  border: 2px solid #dfe1e6;
+  border-radius: 10px;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: #e3a008;
+  }
+
+  input {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 8px 12px !important;
+    flex: 1;
+  }
+
+  select {
+    width: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 8px !important;
+    font-size: 0.85rem !important;
+    background: #f4f5f7 !important;
+    border-radius: 6px !important;
+    font-weight: 600;
+  }
+
+  .add-member-btn {
+    background: #e3a008;
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+      background: #c28807;
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      background: #ebecf0;
+      color: #a5adba;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.members-section {
+  margin-top: 24px;
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #5e6c84;
+    margin-bottom: 12px;
+  }
+
+  .members-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #dfe1e6;
+      border-radius: 2px;
+    }
+  }
+
+  .member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dfe1e6;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-color: #e3a008;
+    }
+
+    .member-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .member-avatar {
+        width: 32px;
+        height: 32px;
+        background: #0079bf;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .member-details {
+        display: flex;
+        flex-direction: column;
+
+        .member-name {
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: #172b4d;
+        }
+
+        .member-email {
+          font-size: 0.75rem;
+          color: #5e6c84;
+        }
+      }
+    }
+
+    .member-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .member-role {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+
+        &.owner {
+          background: #fffae6;
+          color: #bfa126;
+        }
+
+        &.editor {
+          background: #e3fcef;
+          color: #006644;
+        }
+
+        &.viewer {
+          background: #f4f5f7;
+          color: #42526e;
+        }
+      }
+
+      .remove-member-btn {
+        background: transparent;
+        border: none;
+        color: #a5adba;
+        font-size: 1.4rem;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+        transition: color 0.2s;
+
+        &:hover {
+          color: #d52a2a;
+        }
+      }
+    }
+  }
+}
+
+/* Selection Actions Style */
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 4px 12px;
+  border-radius: 8px;
+  margin-left: auto;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  .selection-count {
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .bulk-move-btn {
+    background: #e3a008;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #c28807;
+      transform: translateY(-1px);
+    }
+  }
+
+  .clear-selection-btn {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+/* Card Selection UI */
+.card {
+  position: relative;
+
+  &.selected {
+    border: 2px solid #e3a008 !important;
+    background: #fffdf5 !important;
+  }
+
+  .card-selection-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    .selection-checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #dfe1e6;
+      border-radius: 4px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+
+      &.checked {
+        background: #e3a008;
+        border-color: #e3a008;
+
+        &::after {
+          content: '✓';
+          color: white;
+          font-size: 12px;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+
+  &:hover .card-selection-overlay,
+  &.selected .card-selection-overlay {
+    opacity: 1;
+  }
+}
+
+/* Move Selection Section */
+.move-selection-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0;
+
+  .form-group {
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #5e6c84;
+      margin-bottom: 8px;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 2px solid #dfe1e6;
+      font-size: 0.95rem;
+      background: white;
+      cursor: pointer;
+      transition: border-color 0.2s;
+
+      &:focus {
+        border-color: #e3a008;
+        outline: none;
+      }
+    }
+  }
+}

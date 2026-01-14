@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { TaskService } from '../../services/task';
 import { BoardService } from '../../services/board';
 import { AuthService } from '../../services/auth';
-import { Column, Category, Task, TaskItem, Board } from '../../models/task.model';
+import { Column, Category, Task, TaskItem, Board, BoardMember } from '../../models/task.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -31,6 +31,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Board structure (now based on Columns as per API)
   columns = signal<Column[]>([]);
   categories = signal<Category[]>([]);
+  boardMembers = signal<BoardMember[]>([]);
   selectedCategoryId = signal<string | null>(null);
 
   columnIds = computed(() => this.columns().map(c => c.id));
@@ -41,9 +42,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Modal state
   isModalOpen = signal(false);
-  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'SHARE'>('CARD');
+  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'SHARE' | 'MOVE'>('CARD');
   modalTitle = signal('');
   currentColumnId = signal<string | null>(null);
+
+  // Bulk Move state
+  selectedTaskIds = signal<Set<string>>(new Set());
+  targetBoardId = signal<string | null>(null);
+  targetColumnId = signal<string | null>(null);
+  targetBoardColumns = signal<Column[]>([]);
 
 
 
@@ -58,20 +65,63 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   openShareModal() {
     this.modalMode.set('SHARE');
-    this.modalTitle.set('Compartir tablero');
+    this.modalTitle.set('Gestionar Miembros');
     this.formEmail.set('');
     this.formRole.set('viewer');
+    this.loadBoardMembers();
     this.isModalOpen.set(true);
+  }
+
+  openMoveTasksModal() {
+    this.modalMode.set('MOVE');
+    this.modalTitle.set('Mover tareas seleccionadas');
+    this.targetBoardId.set(null);
+    this.targetColumnId.set(null);
+    this.targetBoardColumns.set([]);
+    this.isModalOpen.set(true);
+  }
+
+  onTargetBoardChange(boardId: string) {
+    this.targetBoardId.set(boardId);
+    this.targetColumnId.set(null);
+    this.taskService.getColumns(boardId).subscribe(cols => {
+      this.targetBoardColumns.set(cols.sort((a, b) => a.order - b.order));
+    });
+  }
+
+  toggleTaskSelection(taskId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.selectedTaskIds.update(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  }
+
+  clearSelection() {
+    this.selectedTaskIds.set(new Set());
+  }
+
+  loadBoardMembers() {
+    const boardId = this.currentBoard()?.id;
+    if (!boardId) return;
+    this.boardService.getBoardMembers(boardId).subscribe({
+      next: (members) => this.boardMembers.set(members),
+      error: (err) => console.error('Error loading members:', err)
+    });
   }
 
 
 
   submitModal() {
     const title = this.formTitle();
-    // For SHARE mode, title is not required, pass validation
-    if (this.modalMode() === 'SHARE') {
-      this.shareBoard();
-      this.closeModal();
+    // For MOVE mode
+    if (this.modalMode() === 'MOVE') {
+      this.bulkMoveTasks();
       return;
     }
 
@@ -125,7 +175,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private shareBoard() {
+  public shareBoard() {
     const boardId = this.currentBoard()?.id;
     const email = this.formEmail();
     const role = this.formRole();
@@ -134,8 +184,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
     this.boardService.addMember(boardId, { email, role }).subscribe({
       next: (member) => {
-        console.log('Member added successfully', member);
-        alert(`Usuario ${member.user.email} añadido como ${member.role}`);
+        this.boardMembers.update(prev => [...prev, member]);
+        this.formEmail.set('');
       },
       error: (err) => {
         console.error('Error adding member:', err);
@@ -143,6 +193,44 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       }
     });
   }
+
+  removeMember(memberId: string) {
+    const boardId = this.currentBoard()?.id;
+    if (!boardId) return;
+
+    if (!confirm('¿Estás seguro de que quieres eliminar a este miembro?')) return;
+
+    this.boardService.deleteMember(boardId, memberId).subscribe({
+      next: () => {
+        this.boardMembers.update(prev => prev.filter(m => m.id !== memberId));
+      },
+      error: (err) => console.error('Error removing member:', err)
+    });
+  }
+
+  bulkMoveTasks() {
+    const targetBoardId = this.targetBoardId();
+    const targetColumnId = this.targetColumnId();
+    const taskIds = Array.from(this.selectedTaskIds());
+
+    if (!targetBoardId || !targetColumnId || taskIds.length === 0) return;
+
+    let completed = 0;
+    taskIds.forEach(id => {
+      this.taskService.moveTask(id, { targetBoardId, targetColumnId }).subscribe({
+        next: () => {
+          completed++;
+          if (completed === taskIds.length) {
+            this.closeModal();
+            this.clearSelection();
+            this.loadBoardData(this.currentBoard()!.id);
+          }
+        },
+        error: (err) => console.error(`Error moving task ${id}:`, err)
+      });
+    });
+  }
+
   currentTask = signal<Task | null>(null);
   overlayMouseDown = false;
 
