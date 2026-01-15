@@ -71,3 +71,11 @@ export interface BoardMember {
   boardId: string;
   user: User;
 }
+
+export interface GanttTask {
+  task: Task;
+  startDay: number;
+  duration: number;
+  startPercent: number;
+  widthPercent: number;
+}

@@ -80,7 +80,7 @@
               <h3>{{ task.title }}</h3>
               <p *ngIf="task.description" class="description">{{ task.description }}</p>
               <div class="card-footer">
-                <span class="effort" *ngIf="task.effortPoints">{{ task.effortPoints }} pts</span>
+                <span class="effort" *ngIf="task.effortPoints">{{ task.effortPoints }} h</span>
                 <span class="cost" *ngIf="getTaskCostTotal(task) > 0">{{ getTaskCostTotal(task).toFixed(2) }}€</span>
               </div>
             </div>
@@ -89,7 +89,7 @@
           }
 
           <div class="column-footer" *ngIf="column.tasks && column.tasks.length > 0">
-            <span class="total-effort">Total: {{ getColumnEffortTotal(column) }} pts</span>
+            <span class="total-effort">Total: {{ getColumnEffortTotal(column) }} h</span>
           </div>
 
           <button class="add-card-btn" (click)="openAddCardModal(column.id)">+ Añadir una tarjeta</button>
@@ -191,7 +191,7 @@
         <div class="modal-row"
           *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
           <div class="form-group flex-1">
-            <label>Esfuerzo (pts)</label>
+            <label>Esfuerzo (horas)</label>
             <input type="number" [value]="formEffortPoints()"
               (input)="formEffortPoints.set($any($event.target).valueAsNumber)" min="0">
           </div>
@@ -331,6 +331,9 @@
     @if (showMenuOptions()) {
     <button class="fab-option" (click)="openFinancialSummary()">
       📊 Resumen Financiero
+    </button>
+    <button class="fab-option" (click)="openGanttConfig()">
+      📅 Diagrama de Gantt
     </button>
     }
   </div>
@@ -499,6 +502,137 @@
         </div>
       </div>
     </aside>
+  </div>
+  }
+
+  <!-- Gantt Configuration Modal -->
+  @if (isGanttConfigOpen()) {
+  <div class="modal-overlay" (click)="closeGanttConfig()">
+    <div class="modal-content gantt-config-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Configurar Diagrama de Gantt</h2>
+        <button class="close-btn" (click)="closeGanttConfig()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="config-description">Configura las horas de trabajo para cada día de la semana. Esta configuración se
+          aplicará a todas las semanas del diagrama.</p>
+
+        <div class="gantt-config-grid">
+          @for (day of weekDays; track day.key) {
+          <div class="day-config">
+            <label>{{ day.label }}</label>
+            <input type="number" [value]="ganttWorkHours()[day.key]"
+              (input)="updateWorkHours(day.key, $any($event.target).valueAsNumber)" min="0" max="24" step="0.5">
+            <span class="hours-label">horas</span>
+          </div>
+          }
+        </div>
+
+        <div class="total-hours-week">
+          <strong>Total horas semanales:</strong> {{ getTotalWeeklyHours() }} horas
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeGanttConfig()">Cancelar</button>
+        <button class="submit-btn" (click)="generateGanttChart()">Generar Diagrama</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Gantt Chart Visualization Modal -->
+  @if (isGanttChartOpen()) {
+  <div class="modal-overlay gantt-chart-overlay" (click)="closeGanttChart()">
+    <div class="modal-content gantt-chart-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Diagrama de Gantt - {{ currentBoard()?.name }}</h2>
+        <button class="close-btn" (click)="closeGanttChart()">&times;</button>
+      </div>
+
+      <div class="modal-body gantt-body">
+        @if (ganttTasks().length > 0) {
+        <div class="gantt-container" [style.--timeline-width.px]="ganttWeeks().length * 350">
+          <!-- Timeline Header -->
+          <div class="gantt-header">
+            <div class="gantt-task-column">
+              <div class="task-header-cell">Tarea</div>
+            </div>
+            <div class="gantt-timeline-column">
+              <div class="timeline-header">
+                @for (week of ganttWeeks(); track $index) {
+                <div class="week-header">
+                  <span>Semana {{ $index + 1 }}</span>
+                  <div class="days-header">
+                    @for (day of weekDays; track day.key) {
+                    <div class="day-header" [title]="day.label">
+                      {{ day.short }}
+                    </div>
+                    }
+                  </div>
+                </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Gantt Rows -->
+          <div class="gantt-rows">
+            @for (ganttTask of ganttTasks(); track ganttTask.task.id) {
+            <div class="gantt-row">
+              <div class="gantt-task-info">
+                <div class="task-title">{{ ganttTask.task.title }}</div>
+                <div class="task-meta">
+                  <span class="priority-badge" [class]="(ganttTask.task.priority || 'Low').toLowerCase()">
+                    {{ ganttTask.task.priority || 'Low' }}
+                  </span>
+                  <span class="effort-badge">{{ ganttTask.task.effortPoints || 0 }} h</span>
+                  @if (ganttTask.task.category) {
+                  <span class="category-badge" [style.background-color]="ganttTask.task.category.color">
+                    {{ ganttTask.task.category.name }}
+                  </span>
+                  }
+                </div>
+              </div>
+              <div class="gantt-timeline">
+                <div class="gantt-bar-container">
+                  <div class="gantt-bar" [style.left.%]="ganttTask.startPercent"
+                    [style.width.%]="ganttTask.widthPercent"
+                    [class]="'priority-' + (ganttTask.task.priority || 'Low').toLowerCase()"
+                    [title]="'Inicio: Día ' + ganttTask.startDay + ' | Duración: ' + ganttTask.duration + ' días'">
+                    <span class="bar-label">{{ ganttTask.duration.toFixed(1) }} días</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+
+          <!-- Summary -->
+          <div class="gantt-summary">
+            <div class="summary-item">
+              <strong>Total de tareas:</strong> {{ ganttTasks().length }}
+            </div>
+            <div class="summary-item">
+              <strong>Esfuerzo total:</strong> {{ getTotalEffort() }} horas
+            </div>
+            <div class="summary-item">
+              <strong>Duración estimada:</strong> {{ ganttWeeks().length }} semana(s)
+            </div>
+          </div>
+        </div>
+        } @else {
+        <div class="no-tasks-message">
+          <p>No hay tareas en este tablero para generar un diagrama de Gantt.</p>
+        </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeGanttChart()">Cerrar</button>
+      </div>
+    </div>
   </div>
   }
 </div>
