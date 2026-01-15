@@ -199,11 +199,11 @@
           <div class="form-group flex-2">
             <label>Categoría</label>
             <div class="select-wrapper">
-              <select [value]="formCategoryId()" (change)="formCategoryId.set($any($event.target).value)"
+              <select [ngModel]="formCategoryId()" (ngModelChange)="formCategoryId.set($event)"
                 *ngIf="!showNewCategoryForm()">
-                <option [value]="null">Sin categoría</option>
+                <option [ngValue]="null">Sin categoría</option>
                 @for (cat of categories(); track cat.id) {
-                <option [value]="cat.id">{{ cat.name }}</option>
+                <option [ngValue]="cat.id">{{ cat.name }}</option>
                 }
               </select>
               <button class="small-btn" (click)="toggleCategoryForm()">
@@ -425,6 +425,11 @@
               <div class="board-item-actions">
                 @if (pBoard.ownerId !== authService.currentUser()?.id) { <span class="shared-badge">Invitado</span> }
                 <span class="primary-badge">Principal</span>
+                @if (pBoard.ownerId === authService.currentUser()?.id && boards().length > 1) {
+                <button class="delete-board-btn" (click)="deleteBoard($event, pBoard.id)" title="Eliminar tablero">
+                  🗑️
+                </button>
+                }
               </div>
             </li>
           </ul>
@@ -448,6 +453,11 @@
                   title="Marcar como principal">
                   ⭐
                 </button>
+                @if (board.ownerId === authService.currentUser()?.id) {
+                <button class="delete-board-btn" (click)="deleteBoard($event, board.id)" title="Eliminar tablero">
+                  🗑️
+                </button>
+                }
               </div>
             </li>
             }

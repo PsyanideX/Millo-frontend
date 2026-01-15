@@ -291,6 +291,48 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
+  deleteBoard(event: MouseEvent, boardId: string) {
+    event.stopPropagation();
+
+    const board = this.boards().find(b => b.id === boardId);
+    if (!board) return;
+
+    // Prevent deleting the last board
+    if (this.boards().length <= 1) {
+      alert('No puedes eliminar el último tablero.');
+      return;
+    }
+
+    // Confirm deletion
+    if (!confirm(`¿Estás seguro de que quieres eliminar el tablero "${board.name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    this.boardService.deleteBoard(boardId).subscribe({
+      next: () => {
+        // Remove board from the list
+        this.boards.update(prev => prev.filter(b => b.id !== boardId));
+
+        // If the deleted board was the current board, switch to the primary board
+        if (this.currentBoard()?.id === boardId) {
+          const primaryBoard = this.boards().find(b => b.isPrimary);
+          if (primaryBoard) {
+            this.switchBoard(primaryBoard.id);
+          } else if (this.boards().length > 0) {
+            this.switchBoard(this.boards()[0].id);
+          }
+        }
+
+        // Close sidebar
+        this.isAppsMenuOpen.set(false);
+      },
+      error: (err) => {
+        console.error('Error deleting board:', err);
+        alert('Error al eliminar el tablero: ' + (err.error?.message || err.message));
+      }
+    });
+  }
+
   ngOnInit() {
     this.loadInitialData();
   }
