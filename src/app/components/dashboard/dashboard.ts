@@ -589,6 +589,24 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
   }
 
+  handleFinancialSummaryOverlayClick(event: MouseEvent) {
+    if (this.overlayMouseDown && event.target === event.currentTarget) {
+      this.closeFinancialSummary();
+    }
+  }
+
+  handleGanttConfigOverlayClick(event: MouseEvent) {
+    if (this.overlayMouseDown && event.target === event.currentTarget) {
+      this.closeGanttConfig();
+    }
+  }
+
+  handleGanttChartOverlayClick(event: MouseEvent) {
+    if (this.overlayMouseDown && event.target === event.currentTarget) {
+      this.closeGanttChart();
+    }
+  }
+
   toggleCategoryForm() {
     this.showNewCategoryForm.update(prev => !prev);
     if (this.showNewCategoryForm()) {

@@ -340,7 +340,8 @@
 
   <!-- Financial Summary Modal -->
   @if (isFinancialSummaryOpen()) {
-  <div class="modal-overlay" (click)="closeFinancialSummary()">
+  <div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)"
+    (click)="handleFinancialSummaryOverlayClick($event)">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Resumen Financiero</h2>
@@ -507,7 +508,8 @@
 
   <!-- Gantt Configuration Modal -->
   @if (isGanttConfigOpen()) {
-  <div class="modal-overlay" (click)="closeGanttConfig()">
+  <div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)"
+    (click)="handleGanttConfigOverlayClick($event)">
     <div class="modal-content gantt-config-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Configurar Diagrama de Gantt</h2>
@@ -544,7 +546,8 @@
 
   <!-- Gantt Chart Visualization Modal -->
   @if (isGanttChartOpen()) {
-  <div class="modal-overlay gantt-chart-overlay" (click)="closeGanttChart()">
+  <div class="modal-overlay gantt-chart-overlay" (mousedown)="handleOverlayMouseDown($event)"
+    (click)="handleGanttChartOverlayClick($event)">
     <div class="modal-content gantt-chart-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Diagrama de Gantt - {{ currentBoard()?.name }}</h2>
