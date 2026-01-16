@@ -7,6 +7,7 @@ import { forkJoin } from 'rxjs';
 import { TaskService } from '../../services/task';
 import { BoardService } from '../../services/board';
 import { AuthService } from '../../services/auth';
+import { NotificationService } from '../../services/notification.service';
 import { GanttChartComponent } from './gantt-chart/gantt-chart.component';
 import { FinancialSummaryComponent } from './financial-summary/financial-summary.component';
 import { BoardMembersComponent } from './board-members/board-members.component';
@@ -24,6 +25,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private boardService = inject(BoardService);
   public authService = inject(AuthService);
   private router = inject(Router);
+  private notificationService = inject(NotificationService);
 
   @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
   @ViewChild(GanttChartComponent) ganttChart?: GanttChartComponent;
@@ -185,6 +187,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       next: (newBoard) => {
         this.boards.update(prev => [...prev, newBoard]);
         this.switchBoard(newBoard.id);
+        this.notificationService.success('Tablero creado correctamente');
       },
       error: (err) => console.error('Error creating board:', err)
     });
@@ -304,6 +307,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               }
             }
             this.isAppsMenuOpen.set(false);
+            this.notificationService.success('Tablero eliminado correctamente');
           },
           error: (err) => {
             console.error('Error deleting board:', err);
@@ -607,6 +611,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.taskService.createColumn(name, boardId, this.columns().length).subscribe({
       next: (newCol) => {
         this.columns.update(prev => [...prev, { ...newCol, tasks: [] }]);
+        this.notificationService.success('Columna añadida correctamente');
       },
       error: (err) => {
         console.error('Error creating column:', err);
@@ -631,6 +636,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           next: () => {
             this.columns.update(prev => prev.filter(c => c.id !== columnId));
             this.activeColumnMenuId.set(null);
+            this.notificationService.success('Columna eliminada correctamente');
           },
           error: (err) => console.error('Error deleting column:', err)
         });
@@ -662,6 +668,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       this.columns.update(cols => cols.map(c =>
         c.id === columnId ? { ...c, tasks: [...(c.tasks || []), taskWithCategory] } : c
       ));
+      this.notificationService.success('Tarjeta añadida correctamente');
     });
   }
 
@@ -690,6 +697,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           }
           : c
       ));
+      this.notificationService.success('Tarjeta actualizada correctamente');
     });
   }
 }

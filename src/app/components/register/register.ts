@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-register',
@@ -15,6 +16,7 @@ export class RegisterComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private notificationService = inject(NotificationService);
 
   registerForm!: FormGroup;
   isLoading = false;
@@ -85,6 +87,7 @@ export class RegisterComponent {
     this.authService.register(email, password, name).subscribe({
       next: (response) => {
         this.isLoading = false;
+        this.notificationService.success('Cuenta creada correctamente. ¡Bienvenido!');
         this.router.navigate(['/dashboard']);
       },
       error: (error) => {
