@@ -226,6 +226,10 @@
         height: 100%;
         overflow: hidden;
         position: relative;
+
+        * {
+            box-sizing: border-box;
+        }
     }
 
     .gantt-header {
@@ -302,6 +306,7 @@
                     font-weight: 600;
                     color: #5e6c84;
                     border-right: 1px solid #ebecf0;
+                    box-sizing: border-box;
 
                     &:last-child {
                         border-right: none;
