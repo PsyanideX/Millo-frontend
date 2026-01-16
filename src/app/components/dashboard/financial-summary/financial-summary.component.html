@@ -1,0 +1,59 @@
+@if (isOpen()) {
+<div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)" (click)="handleOverlayClick($event)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Resumen Financiero</h2>
+            <button class="close-btn" (click)="close()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Categoría</label>
+                <select [value]="selectedCategoryId() || ''"
+                    (change)="setSelectedCategory(($any($event.target).value || null))">
+                    <option [value]="''">Todas las categorías</option>
+                    @for (cat of categories(); track cat.id) {
+                    <option [value]="cat.id">{{ cat.name }}</option>
+                    }
+                </select>
+            </div>
+
+            <div class="financial-summary">
+                @if (summaryData().items.length > 0) {
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Artículo</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (item of summaryData().items; track item.name) {
+                        <tr>
+                            <td class="item-name">{{ item.name }}</td>
+                            <td class="quantity">{{ item.quantity }}</td>
+                            <td class="price">{{ item.price.toFixed(2) }}€</td>
+                            <td class="subtotal">{{ item.subtotal.toFixed(2) }}€</td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <div class="summary-total">
+                    <span>Total:</span>
+                    <span class="total-amount">{{ summaryData().total.toFixed(2) }}€</span>
+                </div>
+                } @else {
+                <p class="no-items">No hay artículos para esta categoría</p>
+                }
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="cancel-btn" (click)="close()">Cerrar</button>
+        </div>
+    </div>
+</div>
+}
