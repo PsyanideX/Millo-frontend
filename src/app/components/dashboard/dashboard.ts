@@ -9,12 +9,13 @@ import { BoardService } from '../../services/board';
 import { AuthService } from '../../services/auth';
 import { GanttChartComponent } from './gantt-chart/gantt-chart.component';
 import { FinancialSummaryComponent } from './financial-summary/financial-summary.component';
+import { BoardMembersComponent } from './board-members/board-members.component';
 import { Column, Category, Task, TaskItem, Board, BoardMember } from '../../models/task.model';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, DragDropModule, FormsModule, GanttChartComponent, FinancialSummaryComponent],
+  imports: [CommonModule, DragDropModule, FormsModule, GanttChartComponent, FinancialSummaryComponent, BoardMembersComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss'
 })
@@ -27,6 +28,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
   @ViewChild(GanttChartComponent) ganttChart?: GanttChartComponent;
   @ViewChild(FinancialSummaryComponent) financialSummary?: FinancialSummaryComponent;
+  @ViewChild(BoardMembersComponent) boardMembersModal?: BoardMembersComponent;
 
   // Board state
   currentBoard = signal<Board | null>(null);
@@ -38,7 +40,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Board structure (now based on Columns as per API)
   columns = signal<Column[]>([]);
   categories = signal<Category[]>([]);
-  boardMembers = signal<BoardMember[]>([]);
   selectedCategoryId = signal<string | null>(null);
 
   columnIds = computed(() => this.columns().map(c => c.id));
@@ -49,7 +50,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Modal state
   isModalOpen = signal(false);
-  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'SHARE' | 'MOVE'>('CARD');
+  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'MOVE'>('CARD');
   modalTitle = signal('');
   currentColumnId = signal<string | null>(null);
 
@@ -71,12 +72,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   openShareModal() {
-    this.modalMode.set('SHARE');
-    this.modalTitle.set('Gestionar Miembros');
-    this.formEmail.set('');
-    this.formRole.set('viewer');
-    this.loadBoardMembers();
-    this.isModalOpen.set(true);
+    this.boardMembersModal?.open();
   }
 
   openMoveTasksModal() {
@@ -111,15 +107,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   clearSelection() {
     this.selectedTaskIds.set(new Set());
-  }
-
-  loadBoardMembers() {
-    const boardId = this.currentBoard()?.id;
-    if (!boardId) return;
-    this.boardService.getBoardMembers(boardId).subscribe({
-      next: (members) => this.boardMembers.set(members),
-      error: (err) => console.error('Error loading members:', err)
-    });
   }
 
 
@@ -179,39 +166,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.switchBoard(newBoard.id);
       },
       error: (err) => console.error('Error creating board:', err)
-    });
-  }
-
-  public shareBoard() {
-    const boardId = this.currentBoard()?.id;
-    const email = this.formEmail();
-    const role = this.formRole();
-
-    if (!boardId || !email) return;
-
-    this.boardService.addMember(boardId, { email, role }).subscribe({
-      next: (member) => {
-        this.boardMembers.update(prev => [...prev, member]);
-        this.formEmail.set('');
-      },
-      error: (err) => {
-        console.error('Error adding member:', err);
-        alert('Error al añadir miembro: ' + (err.error?.message || err.message));
-      }
-    });
-  }
-
-  removeMember(memberId: string) {
-    const boardId = this.currentBoard()?.id;
-    if (!boardId) return;
-
-    if (!confirm('¿Estás seguro de que quieres eliminar a este miembro?')) return;
-
-    this.boardService.deleteMember(boardId, memberId).subscribe({
-      next: () => {
-        this.boardMembers.update(prev => prev.filter(m => m.id !== memberId));
-      },
-      error: (err) => console.error('Error removing member:', err)
     });
   }
 

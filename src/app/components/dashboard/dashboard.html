@@ -118,49 +118,10 @@
       </div>
 
       <div class="modal-body">
-        <div class="form-group" *ngIf="modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+        <div class="form-group" *ngIf="modalMode() !== 'MOVE'">
           <label>Título</label>
           <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
             placeholder="Introduce un título..." autofocus>
-        </div>
-
-        <div class="form-group" *ngIf="modalMode() === 'SHARE'">
-          <label>Añadir nuevo miembro</label>
-          <div class="share-input-group">
-            <input type="email" [value]="formEmail()" (input)="formEmail.set($any($event.target).value)"
-              placeholder="usuario@ejemplo.com" autofocus (keyup.enter)="shareBoard()">
-            <select [value]="formRole()" (change)="formRole.set($any($event.target).value)">
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="owner">Owner</option>
-            </select>
-            <button class="add-member-btn" [disabled]="!formEmail()" (click)="shareBoard()">+</button>
-          </div>
-        </div>
-
-        <!-- Members List -->
-        <div class="members-section" *ngIf="modalMode() === 'SHARE'">
-          <label>Miembros del tablero ({{ boardMembers().length }})</label>
-          <div class="members-list">
-            @for (member of boardMembers(); track member.id) {
-            <div class="member-item">
-              <div class="member-info">
-                <div class="member-avatar">{{ member.user.name.charAt(0).toUpperCase() }}</div>
-                <div class="member-details">
-                  <span class="member-name">{{ member.user.name }}</span>
-                  <span class="member-email">{{ member.user.email }}</span>
-                </div>
-              </div>
-              <div class="member-actions">
-                <span class="member-role" [class]="member.role">{{ member.role }}</span>
-                @if (member.role !== 'owner' || (boardMembers().length > 1 && member.userId !==
-                currentBoard()?.ownerId)) {
-                <button class="remove-member-btn" title="Eliminar miembro" (click)="removeMember(member.id)">×</button>
-                }
-              </div>
-            </div>
-            }
-          </div>
         </div>
 
         <div class="move-selection-section" *ngIf="modalMode() === 'MOVE'">
@@ -189,14 +150,13 @@
           }
         </div>
 
-        <div class="form-group" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+        <div class="form-group" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'MOVE'">
           <label>Descripción</label>
           <textarea [value]="formDescription()" (input)="formDescription.set($any($event.target).value)"
             placeholder="Añade una descripción más detallada..."></textarea>
         </div>
 
-        <div class="modal-row"
-          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'MOVE'">
           <div class="form-group flex-1">
             <label>Esfuerzo (horas)</label>
             <input type="number" [value]="formEffortPoints()"
@@ -220,8 +180,7 @@
           </div>
         </div>
 
-        <div class="modal-row"
-          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+        <div class="modal-row" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'MOVE'">
           <div class="form-group flex-1">
             <label>Prioridad</label>
             <select [value]="formPriority()" (change)="formPriority.set($any($event.target).value)">
@@ -238,7 +197,7 @@
 
         <!-- Inline Category Creation -->
         <div class="category-creator"
-          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+          *ngIf="showNewCategoryForm() && modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'MOVE'">
           <div class="form-group">
             <label>Nueva Categoría</label>
             <div class="creator-row">
@@ -251,8 +210,7 @@
         </div>
 
         <!-- Items Section -->
-        <div class="items-section"
-          *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'SHARE' && modalMode() !== 'MOVE'">
+        <div class="items-section" *ngIf="modalMode() !== 'LIST' && modalMode() !== 'BOARD' && modalMode() !== 'MOVE'">
           <button class="toggle-items-btn" (click)="toggleItemsForm()">
             {{ showItemsForm() ? '▼' : '▶' }} Artículos ({{ formItems().length }})
           </button>
@@ -308,16 +266,14 @@
       <div class="modal-footer">
         <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
         <button class="submit-btn"
-          [disabled]="(modalMode() !== 'SHARE' && modalMode() !== 'MOVE' && !formTitle()) || (modalMode() === 'MOVE' && (!targetBoardId() || !targetColumnId()))"
-          (click)="modalMode() === 'SHARE' ? closeModal() : submitModal()">
+          [disabled]="(modalMode() !== 'MOVE' && !formTitle()) || (modalMode() === 'MOVE' && (!targetBoardId() || !targetColumnId()))"
+          (click)="submitModal()">
           @if (modalMode() === 'LIST') {
           Añadir columna
           } @else if (modalMode() === 'EDIT') {
           Guardar cambios
           } @else if (modalMode() === 'BOARD') {
           Crear tablero
-          } @else if (modalMode() === 'SHARE') {
-          Listo
           } @else if (modalMode() === 'MOVE') {
           Mover {{ selectedTaskIds().size }} tareas
           } @else {
@@ -461,4 +417,5 @@
 
   <app-gantt-chart [columns]="columns()" [boardName]="currentBoard()?.name || ''"></app-gantt-chart>
   <app-financial-summary [columns]="columns()" [categories]="categories()"></app-financial-summary>
+  <app-board-members [boardId]="currentBoard()?.id || ''" [ownerId]="currentBoard()?.ownerId || ''"></app-board-members>
 </div>

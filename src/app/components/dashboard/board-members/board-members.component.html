@@ -1,0 +1,54 @@
+@if (isOpen()) {
+<div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)" (click)="handleOverlayClick($event)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h2>Gestionar Miembros</h2>
+            <button class="close-btn" (click)="close()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Añadir nuevo miembro</label>
+                <div class="share-input-group">
+                    <input type="email" [ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)"
+                        placeholder="usuario@ejemplo.com" autofocus (keyup.enter)="shareBoard()">
+                    <select [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="owner">Owner</option>
+                    </select>
+                    <button class="add-member-btn" [disabled]="!formEmail()" (click)="shareBoard()">+</button>
+                </div>
+            </div>
+
+            <div class="members-section">
+                <label>Miembros del tablero ({{ members().length }})</label>
+                <div class="members-list">
+                    @for (member of members(); track member.id) {
+                    <div class="member-item">
+                        <div class="member-info">
+                            <div class="member-avatar">{{ member.user.name.charAt(0).toUpperCase() }}</div>
+                            <div class="member-details">
+                                <span class="member-name">{{ member.user.name }}</span>
+                                <span class="member-email">{{ member.user.email }}</span>
+                            </div>
+                        </div>
+                        <div class="member-actions">
+                            <span class="member-role" [class]="member.role">{{ member.role }}</span>
+                            @if (member.role !== 'owner' || (members().length > 1 && member.userId !== ownerId())) {
+                            <button class="remove-member-btn" title="Eliminar miembro"
+                                (click)="removeMember(member.id)">×</button>
+                            }
+                        </div>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="submit-btn" (click)="close()">Listo</button>
+        </div>
+    </div>
+</div>
+}
