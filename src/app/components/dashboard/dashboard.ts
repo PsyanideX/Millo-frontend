@@ -1,7 +1,9 @@
 import { Component, computed, inject, OnInit, signal, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { TaskService } from '../../services/task';
 import { BoardService } from '../../services/board';
 import { AuthService } from '../../services/auth';
@@ -18,6 +20,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   private taskService = inject(TaskService);
   private boardService = inject(BoardService);
   public authService = inject(AuthService);
+  private router = inject(Router);
 
   @ViewChild('boardCanvas') boardCanvas?: ElementRef<HTMLDivElement>;
 
@@ -264,6 +267,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Apps Menu state
   isAppsMenuOpen = signal(false);
+  isLoading = signal(false);
 
   // Gantt Chart state
   isGanttConfigOpen = signal(false);
@@ -301,6 +305,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
     this.loadBoard(boardId);
     this.isAppsMenuOpen.set(false);
+  }
+
+  logout() {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   setPrimaryBoard(event: MouseEvent, boardId: string) {
@@ -370,6 +379,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   loadInitialData() {
+    this.isLoading.set(true);
     // 1. Load boards and find primary board
     this.boardService.getBoards().subscribe({
       next: (boards) => {
@@ -378,84 +388,88 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
         if (primaryBoard) {
           this.loadBoard(primaryBoard.id);
+        } else {
+          this.isLoading.set(false);
         }
       },
       error: (err) => {
         console.error('Error loading boards:', err);
+        this.isLoading.set(false);
       }
     });
   }
 
   loadBoard(boardId: string) {
-    // 1. Load board details
-    this.boardService.getBoard(boardId).subscribe({
-      next: (board) => {
+    this.isLoading.set(true);
+
+    forkJoin({
+      board: this.boardService.getBoard(boardId),
+      categories: this.taskService.getCategories(boardId),
+      columns: this.taskService.getColumns(boardId),
+      tasks: this.taskService.getTasks(boardId)
+    }).subscribe({
+      next: ({ board, categories, columns, tasks }) => {
         this.currentBoard.set(board);
-        this.loadBoardData(boardId);
+        this.categories.set(categories);
+        this.processBoardData(columns, tasks);
+        this.isLoading.set(false);
       },
       error: (err) => {
         console.error('Error loading board:', err);
+        this.isLoading.set(false);
       }
     });
   }
 
   loadBoardData(boardId: string) {
-    // 1. Load Categories for this board
-    this.taskService.getCategories(boardId).subscribe({
-      next: (data) => {
-        this.categories.set(data);
-      },
-      error: (err) => {
-        console.error('Error loading categories:', err);
-      }
-    });
+    this.isLoading.set(true);
 
-    // 2. Load Columns for this board
-    this.taskService.getColumns(boardId).subscribe({
-      next: (columns) => {
-        this.columns.set(columns.sort((a, b) => a.order - b.order));
-        this.loadTasksForAllColumns(boardId);
+    forkJoin({
+      categories: this.taskService.getCategories(boardId),
+      columns: this.taskService.getColumns(boardId),
+      tasks: this.taskService.getTasks(boardId)
+    }).subscribe({
+      next: ({ categories, columns, tasks }) => {
+        this.categories.set(categories);
+        this.processBoardData(columns, tasks);
+        this.isLoading.set(false);
       },
       error: (err) => {
-        console.error('Error loading columns:', err);
-        this.columns.set([]);
+        console.error('Error loading board data:', err);
+        this.isLoading.set(false);
       }
     });
   }
 
-  loadTasksForAllColumns(boardId: string) {
-    this.taskService.getTasks(boardId).subscribe({
-      next: (tasks) => {
-        // Group tasks by columnId
-        this.columns.update(cols => cols.map(col => {
-          const colTasks = tasks.filter(t => t.columnId === col.id);
+  private processBoardData(columns: Column[], tasks: Task[]) {
+    // Group tasks by columnId
+    const sortedColumns = columns.sort((a, b) => a.order - b.order);
+    const priorityOrder: Record<string, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
 
-          // Sort tasks: Priority (High > Medium > Low), then EndDate (Ascending)
-          const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+    const processedColumns = sortedColumns.map(col => {
+      const colTasks = tasks.filter(t => t.columnId === col.id);
 
-          colTasks.sort((a, b) => {
-            const pA = priorityOrder[a.priority ?? 'Low'] ?? 1;
-            const pB = priorityOrder[b.priority ?? 'Low'] ?? 1;
+      // Sort tasks: Priority (High > Medium > Low), then EndDate (Ascending)
+      colTasks.sort((a, b) => {
+        const pA = priorityOrder[a.priority ?? 'Low'] ?? 1;
+        const pB = priorityOrder[b.priority ?? 'Low'] ?? 1;
 
-            if (pA !== pB) return pB - pA; // Descending priority
+        if (pA !== pB) return pB - pA; // Descending priority
 
-            // If priorities are equal, sort by endDate (closer dates first)
-            const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_VALUE;
-            const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_VALUE;
+        // If priorities are equal, sort by endDate (closer dates first)
+        const dateA = a.endDate ? new Date(a.endDate).getTime() : Number.MAX_VALUE;
+        const dateB = b.endDate ? new Date(b.endDate).getTime() : Number.MAX_VALUE;
 
-            return dateA - dateB;
-          });
+        return dateA - dateB;
+      });
 
-          return {
-            ...col,
-            tasks: colTasks
-          };
-        }));
-      },
-      error: (err) => {
-        console.error('Error loading tasks:', err);
-      }
+      return {
+        ...col,
+        tasks: colTasks
+      };
     });
+
+    this.columns.set(processedColumns);
   }
 
   drop(event: CdkDragDrop<Task[] | undefined>, columnId: string) {
