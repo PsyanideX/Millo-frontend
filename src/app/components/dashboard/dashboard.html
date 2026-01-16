@@ -61,7 +61,21 @@
       <section class="column">
         <div class="column-header">
           <h2>{{ column.name }} <span>({{ column.tasks?.length || 0 }})</span></h2>
-          <button class="menu-btn">···</button>
+          <div class="column-menu-container">
+            <button class="menu-btn" (click)="toggleColumnMenu(column.id, $event)">···</button>
+            @if (activeColumnMenuId() === column.id) {
+            <div class="column-context-menu" (click)="$event.stopPropagation()">
+              <button class="delete-menu-item" (click)="deleteColumn(column.id)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                Eliminar columna
+              </button>
+            </div>
+            }
+          </div>
         </div>
 
         <div [id]="column.id" cdkDropList [cdkDropListData]="column.tasks" [cdkDropListConnectedTo]="columnIds()"
@@ -113,11 +127,16 @@
   <div class="modal-overlay" (mousedown)="handleOverlayMouseDown($event)" (click)="handleOverlayClick($event)">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2>{{ modalTitle() }}</h2>
+        <h2>{{ modalMode() === 'CONFIRM' ? confirmTitle() : modalTitle() }}</h2>
         <button class="close-btn" (click)="closeModal()">&times;</button>
       </div>
 
       <div class="modal-body">
+        @if (modalMode() === 'CONFIRM') {
+        <div class="confirm-modal-content">
+          <p>{{ confirmMessage() }}</p>
+        </div>
+        } @else {
         <div class="form-group" *ngIf="modalMode() !== 'MOVE'">
           <label>Título</label>
           <input type="text" [value]="formTitle()" (input)="formTitle.set($any($event.target).value)"
@@ -261,9 +280,14 @@
             </div>
           </div>
         </div>
+        }
       </div>
 
       <div class="modal-footer">
+        @if (modalMode() === 'CONFIRM') {
+        <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
+        <button class="submit-btn" (click)="confirmAction()">Aceptar</button>
+        } @else {
         <button class="cancel-btn" (click)="closeModal()">Cancelar</button>
         <button class="submit-btn"
           [disabled]="(modalMode() !== 'MOVE' && !formTitle()) || (modalMode() === 'MOVE' && (!targetBoardId() || !targetColumnId()))"
@@ -280,6 +304,7 @@
           Añadir tarjeta
           }
         </button>
+        }
       </div>
     </div>
   </div>

@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, AfterViewInit, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
@@ -50,8 +50,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Modal state
   isModalOpen = signal(false);
-  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'MOVE'>('CARD');
+  modalMode = signal<'LIST' | 'CARD' | 'EDIT' | 'BOARD' | 'MOVE' | 'CONFIRM'>('CARD');
   modalTitle = signal('');
+  confirmTitle = signal('');
+  confirmMessage = signal('');
+  private pendingAction: (() => void) | null = null;
   currentColumnId = signal<string | null>(null);
 
   // Bulk Move state
@@ -61,6 +64,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   targetBoardColumns = signal<Column[]>([]);
 
 
+
+  activeColumnMenuId = signal<string | null>(null);
 
   openAddBoardModal() {
     this.modalMode.set('BOARD');
@@ -107,6 +112,22 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   clearSelection() {
     this.selectedTaskIds.set(new Set());
+  }
+
+  confirmAction() {
+    if (this.pendingAction) {
+      this.pendingAction();
+      this.pendingAction = null;
+    }
+    this.closeModal();
+  }
+
+  private openConfirmModal(title: string, message: string, action: () => void) {
+    this.confirmTitle.set(title);
+    this.confirmMessage.set(message);
+    this.pendingAction = action;
+    this.modalMode.set('CONFIRM');
+    this.isModalOpen.set(true);
   }
 
 
@@ -263,38 +284,34 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
     // Prevent deleting the last board
     if (this.boards().length <= 1) {
-      alert('No puedes eliminar el último tablero.');
+      this.openConfirmModal('Aviso', 'No puedes eliminar el último tablero.', () => { });
       return;
     }
 
-    // Confirm deletion
-    if (!confirm(`¿Estás seguro de que quieres eliminar el tablero "${board.name}"? Esta acción no se puede deshacer.`)) {
-      return;
-    }
-
-    this.boardService.deleteBoard(boardId).subscribe({
-      next: () => {
-        // Remove board from the list
-        this.boards.update(prev => prev.filter(b => b.id !== boardId));
-
-        // If the deleted board was the current board, switch to the primary board
-        if (this.currentBoard()?.id === boardId) {
-          const primaryBoard = this.boards().find(b => b.isPrimary);
-          if (primaryBoard) {
-            this.switchBoard(primaryBoard.id);
-          } else if (this.boards().length > 0) {
-            this.switchBoard(this.boards()[0].id);
+    this.openConfirmModal(
+      'Eliminar tablero',
+      `¿Estás seguro de que quieres eliminar el tablero "${board.name}"? Esta acción no se puede deshacer.`,
+      () => {
+        this.boardService.deleteBoard(boardId).subscribe({
+          next: () => {
+            this.boards.update(prev => prev.filter(b => b.id !== boardId));
+            if (this.currentBoard()?.id === boardId) {
+              const primaryBoard = this.boards().find(b => b.isPrimary);
+              if (primaryBoard) {
+                this.switchBoard(primaryBoard.id);
+              } else if (this.boards().length > 0) {
+                this.switchBoard(this.boards()[0].id);
+              }
+            }
+            this.isAppsMenuOpen.set(false);
+          },
+          error: (err) => {
+            console.error('Error deleting board:', err);
+            this.openConfirmModal('Error', 'Error al eliminar el tablero: ' + (err.error?.message || err.message), () => { });
           }
-        }
-
-        // Close sidebar
-        this.isAppsMenuOpen.set(false);
-      },
-      error: (err) => {
-        console.error('Error deleting board:', err);
-        alert('Error al eliminar el tablero: ' + (err.error?.message || err.message));
+        });
       }
-    });
+    );
   }
 
   ngOnInit() {
@@ -595,6 +612,35 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         console.error('Error creating column:', err);
       }
     });
+  }
+
+  toggleColumnMenu(columnId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.activeColumnMenuId.update(prev => prev === columnId ? null : columnId);
+  }
+
+  deleteColumn(columnId: string) {
+    const column = this.columns().find(c => c.id === columnId);
+    if (!column) return;
+
+    this.openConfirmModal(
+      'Eliminar columna',
+      `¿Estás seguro de que quieres eliminar la columna "${column.name}"? Se perderán todas las tareas que contiene.`,
+      () => {
+        this.taskService.deleteColumn(columnId).subscribe({
+          next: () => {
+            this.columns.update(prev => prev.filter(c => c.id !== columnId));
+            this.activeColumnMenuId.set(null);
+          },
+          error: (err) => console.error('Error deleting column:', err)
+        });
+      }
+    );
+  }
+
+  @HostListener('document:click')
+  onDocumentClick() {
+    this.activeColumnMenuId.set(null);
   }
 
   private addCard(title: string, description: string, categoryId: string | null, effortPoints: number, priority: "Low" | "Medium" | "High", endDate: string) {
