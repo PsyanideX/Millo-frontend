@@ -15,7 +15,7 @@ export class GanttChartComponent {
 
   isConfigOpen = signal(false);
   isChartOpen = signal(false);
-  
+
   workHours = signal<{ [key: string]: number }>({
     monday: 8,
     tuesday: 8,
@@ -102,7 +102,9 @@ export class GanttChartComponent {
       return;
     }
 
-    const allTasks = this.columns().flatMap(col => col.tasks || []);
+    const allTasks = this.columns()
+      .flatMap(col => col.tasks || [])
+      .filter(task => (task.effortPoints || 0) > 0);
     if (allTasks.length === 0) {
       this.closeConfig();
       this.isChartOpen.set(true);
