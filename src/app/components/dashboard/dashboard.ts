@@ -247,6 +247,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   // Apps Menu state
   isAppsMenuOpen = signal(false);
   isLoading = signal(false);
+  dragStartDelay = 0;
 
   toggleAppsMenu() {
     this.isAppsMenuOpen.update(prev => !prev);
@@ -320,6 +321,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.loadInitialData();
+    this.detectTouchDevice();
+  }
+
+  detectTouchDevice() {
+    // If touch device, set a delay to allow scrolling without accidentally dragging
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      this.dragStartDelay = 300; // 300ms long press to start dragging
+    }
   }
 
   ngAfterViewInit() {

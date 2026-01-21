@@ -295,7 +295,10 @@
   box-shadow: 0 1px 3px rgba(9, 30, 66, 0.13);
   cursor: pointer;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
-  touch-action: none; // Prevent scroll during drag on mobile
+  // touch-action: none removed to allow scrolling on mobile. cdkDragStartDelay will handle the wait for dragging.
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 
   &:hover {
     background: #fafbfc;

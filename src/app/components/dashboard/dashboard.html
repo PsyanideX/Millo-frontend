@@ -83,8 +83,8 @@
 
           @for (task of column.tasks; track task.id) {
           @if (!selectedCategoryId() || task.categoryId === selectedCategoryId()) {
-          <article class="card" cdkDrag [cdkDragData]="task" (cdkDragStarted)="onDragStarted()"
-            (cdkDragEnded)="onDragEnded()"
+          <article class="card" cdkDrag [cdkDragData]="task" [cdkDragStartDelay]="dragStartDelay"
+            (cdkDragStarted)="onDragStarted()" (cdkDragEnded)="onDragEnded()"
             (click)="selectedTaskIds().size > 0 ? toggleTaskSelection(task.id, $event) : openEditCardModal(task)"
             [class.selected]="selectedTaskIds().has(task.id)">
             <div class="card-selection-overlay" (click)="toggleTaskSelection(task.id, $event)">
